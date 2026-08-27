@@ -43,14 +43,14 @@ export function Logo({ className }: { className?: string }) {
         {/* Glow Element */}
         <div 
           ref={glowRef}
-          className="absolute inset-[-4px] bg-white/20 rounded-full blur-[8px] opacity-70"
+          className="absolute inset-[-2px] bg-white/10 rounded-full blur-[10px] opacity-100"
           style={{ transition: 'transform 0.5s cubic-bezier(0.22,1,0.36,1)' }}
         />
         
         {/* Logo Element */}
         <div 
           ref={logoRef}
-          className="relative w-full h-full z-10"
+          className="relative w-full h-full z-10 drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
           style={{ transition: 'transform 0.4s ease-out' }}
         >
           <Image
