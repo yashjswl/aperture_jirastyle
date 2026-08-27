@@ -27,10 +27,10 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
   const defaultTransition = prefersReducedMotion ? { duration: 0.5, delay: delay * 0.1 } : {
     opacity: { duration: 0.8, ease: "easeOut", delay: delay * 0.1 },
     y: {
-      duration: 5 + Math.random() * 2,
+      duration: 5 + ((delay % 3) * 0.5),
       ease: "easeInOut",
       repeat: Infinity,
-      delay: delay * 0.2 + Math.random(),
+      delay: delay * 0.2,
     }
   };
 
