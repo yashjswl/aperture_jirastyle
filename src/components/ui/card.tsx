@@ -1,7 +1,7 @@
 "use client";
 
 import React, { forwardRef } from 'react';
-import { motion, HTMLMotionProps, useReducedMotion } from 'framer-motion';
+import { motion, HTMLMotionProps, useReducedMotion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import { clsx } from '@/lib/clsx';
 
 export interface CardProps extends HTMLMotionProps<"div"> {
@@ -15,6 +15,14 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
   ref
 ) {
   const prefersReducedMotion = useReducedMotion();
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  function handleMouseMove({ currentTarget, clientX, clientY }: React.MouseEvent) {
+    const { left, top } = currentTarget.getBoundingClientRect();
+    mouseX.set(clientX - left);
+    mouseY.set(clientY - top);
+  }
 
   // If the user specifies any Framer Motion props, let them override ours
   // For safety, we keep the default idle animation unless overridden
@@ -45,6 +53,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
   return (
     <motion.div
       ref={ref}
+      onMouseMove={handleMouseMove}
       className={clsx(
         "relative overflow-hidden border border-white/12 group p-6",
         "bg-[rgba(255,255,255,0.05)] backdrop-blur-[24px] backdrop-saturate-[1.5]",
@@ -61,12 +70,21 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
       whileTap={props.whileTap !== undefined ? props.whileTap : defaultWhileTap}
       {...props}
     >
-      {/* Faint top-edge highlight line */}
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none transition-opacity group-hover:opacity-100 opacity-50" />
-      {/* Faint gradient border glow on hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-[#00D4FF] to-transparent mix-blend-screen" />
+      {/* Dynamic Cursor-Tracking Spotlight Gradient */}
+      <motion.div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-screen"
+        style={{
+          background: useMotionTemplate`radial-gradient(400px circle at ${mouseX}px ${mouseY}px, rgba(0, 212, 255, 0.15), transparent 80%)`,
+        }}
+      />
       
-      {children as React.ReactNode}
+      {/* Faint top-edge highlight line */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none transition-opacity group-hover:opacity-100 opacity-50 z-10" />
+      
+      {/* Main Content */}
+      <div className="relative z-10 h-full flex flex-col">
+        {children as React.ReactNode}
+      </div>
     </motion.div>
   );
 });
