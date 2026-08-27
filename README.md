@@ -61,3 +61,8 @@ Sessions default to an 8-hour token lifetime. Checking "Keep me logged in" at lo
 - Swap SQLite for a hosted database (e.g. Postgres) by changing the Prisma datasource/adapter — the schema itself is portable.
 - Set a fresh `AUTH_SECRET` in production (`.env` has a locally-generated one for dev only).
 - There's no self-service "forgot password" flow yet — resets go through a Webadmin.
+
+## Contributors
+
+- **Ioniser69** (<tanaychandra2007@gmail.com>) — Project Setup & Maintenance
+
