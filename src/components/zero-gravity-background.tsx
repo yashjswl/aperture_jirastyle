@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 
-export function LandingBackground() {
+export function ZeroGravityBackground() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

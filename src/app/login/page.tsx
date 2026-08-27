@@ -25,7 +25,7 @@ export default async function LoginPage({
           </p>
         </div>
         <Card className="animate-scale-in" style={{ animationDelay: "150ms" }}>
-          <LoginForm callbackUrl={callbackUrl ?? "/dashboard"} />
+          <LoginForm callbackUrl={callbackUrl ?? "/"} />
         </Card>
         
         <div 

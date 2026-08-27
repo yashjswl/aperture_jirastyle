@@ -26,7 +26,7 @@ export default async function CalendarPage({
 }) {
   const session = await auth();
   if (!session?.user || !isCoreOrAbove(session.user.role)) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   const { month } = await searchParams;

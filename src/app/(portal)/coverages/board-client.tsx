@@ -141,15 +141,20 @@ export function BoardClient({
               {/* Column Content */}
               <div className="flex-1 overflow-y-auto p-3 space-y-3 relative">
                 {colEvents.map((event) => (
-                  <Card
+                  <div
                     key={event.id}
                     draggable={canManage}
                     onDragStart={(e) => handleDragStart(e, event.id)}
                     className={clsx(
-                      "p-4 border-white/10 bg-surface/50 hover:bg-surface/80 transition-all relative group flex flex-col gap-3",
-                      canManage ? "cursor-grab active:cursor-grabbing hover:border-white/20 hover:shadow-lg" : ""
+                      canManage ? "cursor-grab active:cursor-grabbing relative" : "relative"
                     )}
                   >
+                    <Card
+                      className={clsx(
+                        "p-4 border-white/10 bg-surface/50 hover:bg-surface/80 transition-all relative group flex flex-col gap-3",
+                        canManage ? "hover:border-white/20 hover:shadow-lg" : ""
+                      )}
+                    >
                     {/* Card Content - Jira style hierarchy */}
                     
                     {/* 1. Title */}
@@ -210,7 +215,8 @@ export function BoardClient({
                         )}
                       </div>
                     </div>
-                  </Card>
+                    </Card>
+                  </div>
                 ))}
                 
                 {colEvents.length === 0 && (

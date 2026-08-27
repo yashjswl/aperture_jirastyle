@@ -71,7 +71,7 @@ export async function updateProfileAction(
     data: updateData,
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/");
   revalidatePath("/profile");
 
   return { success: true };

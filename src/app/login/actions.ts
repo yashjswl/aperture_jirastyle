@@ -12,14 +12,14 @@ export async function loginAction(
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const remember = formData.get("remember") ? "true" : "false";
-  const callbackUrl = String(formData.get("callbackUrl") ?? "/dashboard");
+  const callbackUrl = String(formData.get("callbackUrl") ?? "/");
 
   try {
     await signIn("credentials", {
       email,
       password,
       remember,
-      redirectTo: callbackUrl || "/dashboard",
+      redirectTo: callbackUrl || "/",
     });
   } catch (error) {
     if (error instanceof AuthError) {
