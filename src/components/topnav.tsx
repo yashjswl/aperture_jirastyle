@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Role } from "@/generated/prisma/client";
 import { ROLE_LABELS } from "@/lib/roles";
-import { signOutAction } from "@/app/(portal)/actions";
+import { signOutAction } from "@/app/dashboard/actions";
 
 type NavUser = {
   name?: string | null;

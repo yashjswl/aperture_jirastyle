@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { sendTestNotificationAction } from "@/app/(portal)/notifications/actions";
+import { sendTestNotificationAction } from "@/app/dashboard/notifications/actions";
 
 export function TestNotificationButton() {
   const [loading, setLoading] = useState(false);

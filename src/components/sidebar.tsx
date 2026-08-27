@@ -40,7 +40,7 @@ export function Sidebar({ user }: { user: NavUser }) {
   const pathname = usePathname();
 
   const links = [
-    { href: "/", label: "Dashboard", icon: Icons.Dashboard },
+    { href: "/dashboard", label: "Dashboard", icon: Icons.Dashboard },
     { href: "/coverages", label: "Project Calls", icon: Icons.Board },
     { href: "/announcements", label: "Announcements", icon: Icons.Announcements },
     { href: "/directory", label: "Team", icon: Icons.Directory },
@@ -52,7 +52,7 @@ export function Sidebar({ user }: { user: NavUser }) {
     <aside className="hidden md:flex flex-col w-[260px] h-screen bg-surface border-r border-white/5 shrink-0 z-20 overflow-y-auto custom-scrollbar pt-4">
       {/* Brand Header */}
       <div className="px-6 pb-6">
-        <Link href="/" className="flex items-center gap-3 font-bold text-xl tracking-tight hover:opacity-80 transition-opacity">
+        <Link href="/dashboard" className="flex items-center gap-3 font-bold text-xl tracking-tight hover:opacity-80 transition-opacity">
           <div className="shrink-0 text-white">
             <Logo className="h-7 w-7" />
           </div>
@@ -67,7 +67,7 @@ export function Sidebar({ user }: { user: NavUser }) {
         </div>
         
         {links.map((link) => {
-          const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+          const active = link.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(link.href);
           return (
             <Link
               key={link.href}

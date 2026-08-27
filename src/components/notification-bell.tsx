@@ -6,7 +6,7 @@ import {
   getNotificationsAction,
   markAsReadAction,
   markAllAsReadAction,
-} from "@/app/(portal)/notifications/actions";
+} from "@/app/dashboard/notifications/actions";
 import type { Notification } from "@/generated/prisma/client";
 
 export function NotificationBell() {
