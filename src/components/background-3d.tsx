@@ -46,9 +46,9 @@ function AestheticParticles() {
 
 export function Background3D() {
   return (
-    <div className="fixed inset-0 z-[-1] bg-black pointer-events-none">
+    <div className="fixed inset-0 z-[-1] bg-[#0a0a0a] pointer-events-none">
       <Canvas camera={{ position: [0, 0, 5] }}>
-        <fog attach="fog" args={["#000000", 3, 15]} />
+        <fog attach="fog" args={["#0a0a0a", 3, 15]} />
         <AestheticParticles />
       </Canvas>
     </div>
