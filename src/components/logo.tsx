@@ -2,7 +2,7 @@ import Image from "next/image";
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <div className={`relative animate-[spin_12s_linear_infinite] ${className}`}>
+    <div className={`relative animate-pulse drop-shadow-[0_0_12px_rgba(255,255,255,0.6)] ${className}`}>
       <Image
         src="/logo.png"
         alt="Aperture Logo"
