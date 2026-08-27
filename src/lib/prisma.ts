@@ -7,7 +7,13 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const createPrismaClient = () => {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+  const connectionString =
+    process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/aperture";
+  const isProd = process.env.NODE_ENV === "production";
+  const pool = new Pool({
+    connectionString,
+    ssl: isProd ? { rejectUnauthorized: false } : undefined,
+  });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 };

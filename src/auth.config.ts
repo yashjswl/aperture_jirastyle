@@ -3,6 +3,8 @@ import type { NextAuthConfig } from "next-auth";
 // Split out so middleware (edge runtime) can use it without pulling in
 // bcrypt/Prisma, which don't run on the edge.
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "aperture-auth-secret-key-2026",
   pages: {
     signIn: "/login",
   },
