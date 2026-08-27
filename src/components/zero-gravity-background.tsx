@@ -31,17 +31,17 @@ export function ZeroGravityBackground() {
   }, [mouseX, mouseY]);
 
   // Orb parallax mappings (different directions and depths for 3D feel)
-  const orb1X = useTransform(smoothX, [-1, 1], [-40, 40]);
-  const orb1Y = useTransform(smoothY, [-1, 1], [-40, 40]);
+  const orb1X = useTransform(smoothX, [-1, 1], [-200, 200]);
+  const orb1Y = useTransform(smoothY, [-1, 1], [-200, 200]);
 
-  const orb2X = useTransform(smoothX, [-1, 1], [60, -60]);
-  const orb2Y = useTransform(smoothY, [-1, 1], [60, -60]);
+  const orb2X = useTransform(smoothX, [-1, 1], [300, -300]);
+  const orb2Y = useTransform(smoothY, [-1, 1], [300, -300]);
 
-  const orb3X = useTransform(smoothX, [-1, 1], [-30, 30]);
-  const orb3Y = useTransform(smoothY, [-1, 1], [30, -30]);
+  const orb3X = useTransform(smoothX, [-1, 1], [-150, 150]);
+  const orb3Y = useTransform(smoothY, [-1, 1], [150, -150]);
 
-  const starX = useTransform(smoothX, [-1, 1], [15, -15]);
-  const starY = useTransform(smoothY, [-1, 1], [15, -15]);
+  const starX = useTransform(smoothX, [-1, 1], [50, -50]);
+  const starY = useTransform(smoothY, [-1, 1], [50, -50]);
 
   return (
     <div className="fixed inset-0 z-[-1] bg-[#000000] overflow-hidden pointer-events-none">

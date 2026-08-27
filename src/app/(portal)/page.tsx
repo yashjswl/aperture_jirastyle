@@ -51,7 +51,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-start">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-stretch">
         {user.role === "WORKING_TEAM" && engagement && (
           <Card className="bg-surface border-white/5 overflow-hidden flex flex-col h-full">
             <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-surface-2/50">
@@ -109,7 +109,7 @@ export default async function DashboardPage() {
         {/* Core Stats if applicable */}
         {showMembers && (
           <>
-            <Card className="bg-surface border-white/5 p-4 flex flex-col justify-between h-[120px]">
+            <Card className="bg-surface border-white/5 p-4 flex flex-col justify-between h-full min-h-[120px]">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] text-white/40 uppercase font-bold tracking-wider mb-1">Active Members</p>
                 <Link href="/directory" className="p-2 rounded hover:bg-white/5 text-white/40 hover:text-white transition-colors">
@@ -119,7 +119,7 @@ export default async function DashboardPage() {
               <p className="text-3xl font-bold tracking-tight text-white/90">{memberCount}</p>
             </Card>
 
-            <Card className="bg-surface border-white/5 p-4 flex flex-col justify-between h-[120px]">
+            <Card className="bg-surface border-white/5 p-4 flex flex-col justify-between h-full min-h-[120px]">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] text-white/40 uppercase font-bold tracking-wider mb-1">Core Calendar</p>
                 <Link href="/calendar" className="p-2 rounded hover:bg-white/5 text-white/40 hover:text-white transition-colors">
