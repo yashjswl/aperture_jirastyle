@@ -40,6 +40,9 @@ export function ZeroGravityBackground() {
   const orb3X = useTransform(smoothX, [-1, 1], [-30, 30]);
   const orb3Y = useTransform(smoothY, [-1, 1], [30, -30]);
 
+  const starX = useTransform(smoothX, [-1, 1], [15, -15]);
+  const starY = useTransform(smoothY, [-1, 1], [15, -15]);
+
   return (
     <div className="fixed inset-0 z-[-1] bg-[#000000] overflow-hidden pointer-events-none">
       {/* Ambient Depth Orbs */}
@@ -80,8 +83,8 @@ export function ZeroGravityBackground() {
           className="absolute inset-0"
           style={{
             // Star field moves slightly in the opposite direction for maximum depth
-            x: useTransform(smoothX, [-1, 1], [15, -15]),
-            y: useTransform(smoothY, [-1, 1], [15, -15])
+            x: starX,
+            y: starY
           }}
         >
           {[...Array(50)].map((_, i) => (
