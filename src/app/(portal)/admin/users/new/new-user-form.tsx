@@ -44,7 +44,7 @@ export function NewUserForm() {
           id="role"
           name="role"
           defaultValue="WORKING_TEAM"
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#00D4FF] focus:border-[#00D4FF] transition-all"
         >
           {ROLE_ORDER.map((role) => (
             <option key={role} value={role}>

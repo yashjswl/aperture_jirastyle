@@ -49,7 +49,7 @@ export function NewEventForm({
             id="description"
             name="description"
             rows={3}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            className="w-full rounded-lg border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-[#00D4FF] focus:border-[#00D4FF] focus:bg-[rgba(255,255,255,0.06)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-all"
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -93,7 +93,7 @@ export function NewEventForm({
           </div>
 
           {filteredUsers.length > 0 && (
-            <div className="bg-surface border border-border rounded-md divide-y divide-border overflow-hidden max-h-48 overflow-y-auto">
+            <div className="bg-[rgba(255,255,255,0.02)] border border-white/10 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
               {filteredUsers.map((u) => (
                 <div key={u.id} className="flex items-center justify-between p-2 hover:bg-white/5">
                   <div className="min-w-0 flex-1">

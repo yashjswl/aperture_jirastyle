@@ -177,7 +177,7 @@ export function DriveLinkForm({ eventId, initialLink }: { eventId: string, initi
             type="url"
             value={link}
             onChange={(e) => setLink(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+      className="w-full rounded-lg border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#00D4FF] focus:border-[#00D4FF] transition-all"
             placeholder="https://drive.google.com/..."
           />
           <div className="flex items-center gap-2">

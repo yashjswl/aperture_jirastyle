@@ -45,7 +45,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
           <input
             type="checkbox"
             name="remember"
-            className="h-4 w-4 rounded border-border bg-surface accent-[var(--accent)]"
+            className="h-4 w-4 rounded border-white/10 bg-[rgba(255,255,255,0.04)] accent-[#00D4FF]"
           />
           Keep me logged in
         </label>
