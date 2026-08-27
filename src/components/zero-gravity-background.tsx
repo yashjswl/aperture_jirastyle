@@ -14,26 +14,26 @@ export function ZeroGravityBackground() {
       {/* Ambient Depth Orbs */}
       {/* Violet Orb */}
       <div 
-        className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full opacity-[0.12]"
+        className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] rounded-full opacity-[0.15]"
         style={{
-          background: 'radial-gradient(circle, #7C3AED 0%, rgba(124, 58, 237, 0) 70%)',
-          filter: 'blur(120px)'
+          background: 'radial-gradient(circle, #7C3AED 0%, rgba(124, 58, 237, 0) 100%)',
+          filter: 'blur(140px)'
         }}
       />
       {/* Electric Blue Orb */}
       <div 
-        className="absolute top-[20%] -right-[15%] w-[60%] h-[60%] rounded-full opacity-[0.1]"
+        className="absolute top-[20%] -right-[15%] w-[70%] h-[70%] rounded-full opacity-[0.12]"
         style={{
-          background: 'radial-gradient(circle, #00D4FF 0%, rgba(0, 212, 255, 0) 70%)',
-          filter: 'blur(150px)'
+          background: 'radial-gradient(circle, #00D4FF 0%, rgba(0, 212, 255, 0) 100%)',
+          filter: 'blur(160px)'
         }}
       />
       {/* Neon Teal Orb */}
       <div 
-        className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] rounded-full opacity-[0.08]"
+        className="absolute -bottom-[20%] left-[20%] w-[60%] h-[60%] rounded-full opacity-[0.1]"
         style={{
-          background: 'radial-gradient(circle, #00FFC2 0%, rgba(0, 255, 194, 0) 70%)',
-          filter: 'blur(130px)'
+          background: 'radial-gradient(circle, #00FFC2 0%, rgba(0, 255, 194, 0) 100%)',
+          filter: 'blur(150px)'
         }}
       />
 
