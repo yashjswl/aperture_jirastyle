@@ -53,8 +53,8 @@ export function Sidebar({ user }: { user: NavUser }) {
       {/* Brand Header */}
       <div className="px-6 pb-6">
         <Link href="/" className="flex items-center gap-3 font-bold text-xl tracking-tight hover:opacity-80 transition-opacity">
-          <div className="bg-accent rounded-md p-1.5 shrink-0">
-            <Logo className="h-5 w-5 text-accent-foreground" />
+          <div className="shrink-0 text-white">
+            <Logo className="h-7 w-7" />
           </div>
           Aperture
         </Link>
