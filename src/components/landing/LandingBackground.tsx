@@ -1,34 +1,61 @@
-import React from 'react';
+"use client";
+
+import React, { useEffect, useState } from 'react';
 
 export function LandingBackground() {
-  return (
-    <div className="fixed inset-0 z-[-1] bg-[#0a0a0a] overflow-hidden pointer-events-none">
-      {/* Bloom 1: Top Left (Blue-White) */}
-      <div 
-        className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full opacity-20"
-        style={{
-          background: 'radial-gradient(circle, rgba(200, 220, 255, 0.8) 0%, rgba(200, 220, 255, 0) 70%)',
-          filter: 'blur(100px)'
-        }}
-      />
+  const [mounted, setMounted] = useState(false);
 
-      {/* Bloom 2: Bottom Right (Faint Magenta) */}
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[-1] bg-[#000000] overflow-hidden pointer-events-none">
+      {/* Ambient Depth Orbs */}
+      {/* Violet Orb */}
       <div 
-        className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] rounded-full opacity-15"
+        className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full opacity-[0.12]"
         style={{
-          background: 'radial-gradient(circle, rgba(255, 150, 200, 0.6) 0%, rgba(255, 150, 200, 0) 70%)',
+          background: 'radial-gradient(circle, #7C3AED 0%, rgba(124, 58, 237, 0) 70%)',
           filter: 'blur(120px)'
         }}
       />
-      
-      {/* Bloom 3: Center Bottom (Subtle Blue) */}
+      {/* Electric Blue Orb */}
       <div 
-        className="absolute -bottom-[10%] left-[20%] w-[40%] h-[40%] rounded-full opacity-10"
+        className="absolute top-[20%] -right-[15%] w-[60%] h-[60%] rounded-full opacity-[0.1]"
         style={{
-          background: 'radial-gradient(circle, rgba(150, 200, 255, 0.5) 0%, rgba(150, 200, 255, 0) 70%)',
-          filter: 'blur(90px)'
+          background: 'radial-gradient(circle, #00D4FF 0%, rgba(0, 212, 255, 0) 70%)',
+          filter: 'blur(150px)'
         }}
       />
+      {/* Neon Teal Orb */}
+      <div 
+        className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] rounded-full opacity-[0.08]"
+        style={{
+          background: 'radial-gradient(circle, #00FFC2 0%, rgba(0, 255, 194, 0) 70%)',
+          filter: 'blur(130px)'
+        }}
+      />
+
+      {/* Subtle Star Field (Only render on client to avoid hydration mismatch with Math.random) */}
+      {mounted && (
+        <div className="absolute inset-0">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute bg-white rounded-full animate-drift motion-reduce:animate-none opacity-10"
+              style={{
+                width: '1px',
+                height: '1px',
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 10}s`,
+                animationDuration: `${Math.random() * 20 + 20}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
