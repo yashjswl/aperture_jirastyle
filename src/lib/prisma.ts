@@ -10,9 +10,10 @@ const createPrismaClient = () => {
   const connectionString =
     process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/aperture";
   const isProd = process.env.NODE_ENV === "production";
+  const cleanConnectionString = connectionString.split("?")[0];
   const pool = new Pool({
-    connectionString,
-    ssl: isProd ? { rejectUnauthorized: false } : undefined,
+    connectionString: cleanConnectionString,
+    ssl: connectionString.includes("sslmode=require") ? { rejectUnauthorized: false } : (isProd ? { rejectUnauthorized: false } : undefined),
   });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
