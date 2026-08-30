@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { clsx } from "clsx";
+
 
 type LensData = {
   id: number;
