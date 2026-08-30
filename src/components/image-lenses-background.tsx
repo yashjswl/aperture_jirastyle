@@ -47,21 +47,21 @@ export function ImageLensesBackground({ seed }: { seed?: number }) {
       const rand = createRandom(seed);
       
       const newLenses: LensData[] = [];
-      const overlap = 0.65; // Heavily overlapped (35% overlap allowed) for dense packing
+      const overlap = 0.82; // 18% overlap allowed for a tightly packed, dense mosaic
       
       const pool = [];
-      // Boost quantities for dense packing
-      for (let i = 0; i < 8; i++) pool.push({ r: 200 + rand() * 60, zIndex: 10 }); 
-      for (let i = 0; i < 25; i++) pool.push({ r: 120 + rand() * 40, zIndex: 5 }); 
-      for (let i = 0; i < 45; i++) pool.push({ r: 70 + rand() * 30, zIndex: 1 });  
+      // Huge boost in quantities, scaled down radii
+      for (let i = 0; i < 20; i++) pool.push({ r: 90 + rand() * 25, zIndex: 10 }); 
+      for (let i = 0; i < 60; i++) pool.push({ r: 50 + rand() * 20, zIndex: 5 }); 
+      for (let i = 0; i < 150; i++) pool.push({ r: 25 + rand() * 15, zIndex: 1 });  
       
       pool.sort((a, b) => b.r - a.r);
 
       for (const item of pool) {
-        for (let attempts = 0; attempts < 3000; attempts++) {
-          // Allow spawning slightly off-screen to fill edges
-          const x = -50 + rand() * (width + 100);
-          const y = -50 + rand() * (height + 100);
+        for (let attempts = 0; attempts < 4000; attempts++) {
+          // Spawn well off-screen so the viewport is completely filled seamlessly
+          const x = -150 + rand() * (width + 300);
+          const y = -150 + rand() * (height + 300);
           
           let collision = false;
           for (const existing of newLenses) {
@@ -226,15 +226,15 @@ export function ImageLensesBackground({ seed }: { seed?: number }) {
           >
             {/* Glossy specular reflection (glass highlight) overlaid on top of the image */}
             <div 
-              className="absolute inset-0 z-20 rounded-full mix-blend-screen opacity-60 pointer-events-none"
+              className="absolute inset-0 z-20 rounded-full mix-blend-screen opacity-30 pointer-events-none"
               style={{
-                background: `radial-gradient(circle at 40% 40%, rgba(100,200,255,0.4) 0%, rgba(200,100,255,0.1) 40%, transparent 60%)`
+                background: `radial-gradient(circle at 40% 40%, rgba(100,200,255,0.2) 0%, rgba(200,100,255,0.05) 40%, transparent 60%)`
               }}
             />
             <div 
-              className="absolute inset-0 z-20 rounded-full mix-blend-screen opacity-40 pointer-events-none"
+              className="absolute inset-0 z-20 rounded-full mix-blend-screen opacity-20 pointer-events-none"
               style={{
-                background: `radial-gradient(circle at 65% 65%, rgba(255,255,255,0.2) 0%, transparent 30%)`
+                background: `radial-gradient(circle at 65% 65%, rgba(255,255,255,0.1) 0%, transparent 30%)`
               }}
             />
             

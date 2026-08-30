@@ -56,7 +56,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
       onMouseMove={handleMouseMove}
       className={clsx(
         "relative overflow-hidden border border-white/12 group p-6",
-        "bg-[rgba(255,255,255,0.05)] backdrop-blur-[24px] backdrop-saturate-[1.5]",
+        "bg-black/60 [24px] backdrop-saturate-[1.5]",
         pill ? "rounded-full" : "rounded-[24px]",
         className
       )}
