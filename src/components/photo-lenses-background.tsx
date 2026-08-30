@@ -55,7 +55,7 @@ export function PhotoLensesBackground() {
   }, []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none bg-[#020202]" style={{ zIndex: -10 }}>
+    <div className="fixed inset-0 overflow-hidden pointer-events-none bg-black" style={{ zIndex: -10 }}>
       {/* 
         The background image wrapper is oversized (108%) so we can pan it around 
         without revealing the edges of the screen.
@@ -69,22 +69,18 @@ export function PhotoLensesBackground() {
           src="/lenses-bg.jpg" 
           alt="Lenses Background" 
           className="w-full h-full object-cover"
-          style={{ opacity: 0.65 }} // Drop opacity slightly so the UI stays crisp on top
+          /* Removed opacity reduction so it's fully bright and realistic */
         />
       </div>
       
       {/* 
         Dynamic flashlight / glare that tracks the mouse.
-        mix-blend-soft-light makes it realistically brighten the glass elements in the photo.
+        mix-blend-screen acts as a physical spotlight adding light to the photo.
       */}
       <div 
         ref={glareRef}
-        className="absolute inset-0 mix-blend-soft-light"
+        className="absolute inset-0 mix-blend-screen"
         style={{ willChange: "background" }}
-      />
-      <div 
-        className="absolute inset-0 mix-blend-overlay opacity-50"
-        style={{ background: "radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.8) 100%)" }}
       />
     </div>
   );
