@@ -47,47 +47,36 @@ export function ImageLensesBackground({ seed }: { seed?: number }) {
       const rand = createRandom(seed);
       
       const newLenses: LensData[] = [];
-      const overlap = 0.82; // 18% overlap allowed for a tightly packed, dense mosaic
       
-      const pool = [];
-      // Huge boost in quantities, scaled down radii
-      for (let i = 0; i < 20; i++) pool.push({ r: 90 + rand() * 25, zIndex: 10 }); 
-      for (let i = 0; i < 60; i++) pool.push({ r: 50 + rand() * 20, zIndex: 5 }); 
-      for (let i = 0; i < 150; i++) pool.push({ r: 25 + rand() * 15, zIndex: 1 });  
+      // Grid configuration
+      const baseRadius = 80;
+      const spacingX = baseRadius * 1.55; // Tightly packed horizontally
+      const spacingY = baseRadius * 1.35; // Staggered hex grid vertical spacing
       
-      pool.sort((a, b) => b.r - a.r);
-
-      for (const item of pool) {
-        for (let attempts = 0; attempts < 4000; attempts++) {
-          // Spawn well off-screen so the viewport is completely filled seamlessly
-          const x = -150 + rand() * (width + 300);
-          const y = -150 + rand() * (height + 300);
+      const cols = Math.ceil((width + baseRadius * 4) / spacingX);
+      const rows = Math.ceil((height + baseRadius * 4) / spacingY);
+      
+      let idCounter = 0;
+      
+      for (let r = -2; r <= rows; r++) {
+        for (let c = -2; c <= cols; c++) {
+          const isOffset = r % 2 !== 0;
+          const x = c * spacingX + (isOffset ? spacingX / 2 : 0) - baseRadius * 2;
+          const y = r * spacingY - baseRadius * 2;
           
-          let collision = false;
-          for (const existing of newLenses) {
-            const dx = existing.x - x;
-            const dy = existing.y - y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            // Tight collision packing
-            if (dist < (existing.r + item.r) * overlap) {
-              collision = true;
-              break;
-            }
-          }
+          // Slight size variation for visual interest (±15%)
+          const radiusVariation = baseRadius * (0.85 + rand() * 0.3);
           
-          if (!collision) {
-            newLenses.push({
-              id: `lens-${newLenses.length}`,
-              x,
-              y,
-              r: item.r,
-              src: LENS_IMAGES[Math.floor(rand() * LENS_IMAGES.length)],
-              rotation: rand() * 360,
-              depth: 0.3 + (item.zIndex / 10) * 0.7, 
-              zIndex: item.zIndex + Math.floor(rand() * 10),
-            });
-            break;
-          }
+          newLenses.push({
+            id: `lens-${idCounter++}`,
+            x,
+            y,
+            r: radiusVariation,
+            src: LENS_IMAGES[Math.floor(rand() * LENS_IMAGES.length)],
+            rotation: 0, // Perfectly upright
+            depth: 0.5,  // Uniform depth so the entire grid shifts smoothly together on parallax
+            zIndex: r,   // Layer sequentially so rows overlap cleanly like shingles
+          });
         }
       }
       
