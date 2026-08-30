@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ZeroGravityBackground } from "@/components/zero-gravity-background";
+import { CameraLensesBackground } from "@/components/camera-lenses-background";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -24,7 +24,7 @@ export default function RootLayout({
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-foreground font-sans bg-transparent">
-        <ZeroGravityBackground />
+        <CameraLensesBackground />
         {children}
       </body>
     </html>
