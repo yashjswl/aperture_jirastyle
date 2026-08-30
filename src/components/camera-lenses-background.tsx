@@ -2,21 +2,33 @@
 
 import React, { useEffect, useRef, useState } from "react";
 
-
 type LensData = {
   id: number;
   x: number;
   y: number;
   r: number;
   color: string;
+  secondaryColor: string;
   ringColor: string;
   rotation: number;
+  text: string;
 };
 
-const LENS_COLORS = ["#3b82f6", "#8b5cf6", "#eab308", "#22c55e", "#14b8a6"];
-const RING_COLORS = ["#ef4444", "#e5e7eb", "transparent", "transparent", "transparent"];
+const LENS_COLORS = [
+  { primary: "rgba(59, 130, 246, 0.7)", secondary: "rgba(168, 85, 247, 0.5)" }, // Blue/Purple
+  { primary: "rgba(168, 85, 247, 0.7)", secondary: "rgba(234, 179, 8, 0.5)" },  // Purple/Gold
+  { primary: "rgba(234, 179, 8, 0.7)", secondary: "rgba(34, 197, 94, 0.5)" },   // Gold/Green
+  { primary: "rgba(34, 197, 94, 0.7)", secondary: "rgba(20, 184, 166, 0.5)" },  // Green/Teal
+];
 
-// Simple seeded random function
+const RING_COLORS = ["#ef4444", "#e5e7eb", "transparent", "transparent"];
+const TEXTS = [
+  "OPTICAL LENS  50mm 1:1.4  Ø 58mm",
+  "PRO SERIES  85mm 1:1.2  USM  Ø 72mm",
+  "WIDE ANGLE  24mm 1:1.4  Ø 77mm",
+  "MACRO LENS  100mm 1:2.8  IS  Ø 67mm"
+];
+
 function createRandom(seed?: number) {
   let s = seed !== undefined ? seed : Math.floor(Math.random() * 1000000);
   return function () {
@@ -35,28 +47,24 @@ export function CameraLensesBackground({ seed }: { seed?: number }) {
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    // Generate lenses on mount
     const generateLenses = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const rand = createRandom(seed);
       
       const newLenses: LensData[] = [];
-      const padding = 5;
+      const padding = 2; // tighter packing
       
-      // Target radii to pack
       const radii = [];
-      for (let i = 0; i < 5; i++) radii.push(120 + rand() * 40); // 5 large
-      for (let i = 0; i < 15; i++) radii.push(70 + rand() * 40); // 15 medium
-      for (let i = 0; i < 40; i++) radii.push(30 + rand() * 35); // 40 small
+      for (let i = 0; i < 4; i++) radii.push(140 + rand() * 40); // Huge
+      for (let i = 0; i < 12; i++) radii.push(90 + rand() * 30); // Medium
+      for (let i = 0; i < 35; i++) radii.push(45 + rand() * 30); // Small
       
-      // Sort largest first for better packing
       radii.sort((a, b) => b - a);
 
       for (const r of radii) {
         let placed = false;
-        // try 2000 times to place this circle
-        for (let attempts = 0; attempts < 2000; attempts++) {
+        for (let attempts = 0; attempts < 2500; attempts++) {
           const x = r + rand() * (width - r * 2);
           const y = r + rand() * (height - r * 2);
           
@@ -72,14 +80,17 @@ export function CameraLensesBackground({ seed }: { seed?: number }) {
           }
           
           if (!collision) {
+            const colorCombo = LENS_COLORS[Math.floor(rand() * LENS_COLORS.length)];
             newLenses.push({
               id: newLenses.length,
               x,
               y,
               r,
-              color: LENS_COLORS[Math.floor(rand() * LENS_COLORS.length)],
+              color: colorCombo.primary,
+              secondaryColor: colorCombo.secondary,
               ringColor: RING_COLORS[Math.floor(rand() * RING_COLORS.length)],
               rotation: rand() * 360,
+              text: TEXTS[Math.floor(rand() * TEXTS.length)]
             });
             placed = true;
             break;
@@ -88,7 +99,6 @@ export function CameraLensesBackground({ seed }: { seed?: number }) {
       }
       setLenses(newLenses);
       
-      // Init mouse target to center
       mouseRef.current.targetX = width / 2;
       mouseRef.current.targetY = height / 2;
       mouseRef.current.x = width / 2;
@@ -97,7 +107,6 @@ export function CameraLensesBackground({ seed }: { seed?: number }) {
 
     generateLenses();
 
-    // Re-generate on resize (debounced)
     let timeout: ReturnType<typeof setTimeout>;
     const handleResize = () => {
       clearTimeout(timeout);
@@ -113,12 +122,12 @@ export function CameraLensesBackground({ seed }: { seed?: number }) {
       mouseRef.current.targetY = e.clientY;
     };
     
-    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
     
     const tick = () => {
-      // Lerp mouse
-      mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.05;
-      mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.05;
+      // Faster lerp for more responsiveness
+      mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.1;
+      mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.1;
       
       const { x: mx, y: my } = mouseRef.current;
 
@@ -129,23 +138,21 @@ export function CameraLensesBackground({ seed }: { seed?: number }) {
         const dx = mx - data.x;
         const dy = my - data.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxDist = 400;
+        const maxDist = 600;
         
-        // Parallax shift based on cursor distance
         const influence = Math.max(0, 1 - dist / maxDist);
-        const tx = dx * influence * -0.06;
-        const ty = dy * influence * -0.06;
+        // Using transform3d for hardware acceleration to guarantee 120fps
+        const tx = dx * influence * -0.05;
+        const ty = dy * influence * -0.05;
         
-        // Update outer wrapper transform
         el.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
         
-        // Shift reflection highlight
-        const hl = el.querySelector(".lens-highlight") as SVGEllipseElement;
+        // Transform the highlight purely using translate3d to avoid SVG reflows
+        const hl = el.querySelector(".lens-highlight") as SVGElement;
         if (hl) {
-          const hx = dx * 0.04;
-          const hy = dy * 0.04;
-          hl.setAttribute("cx", `${45 + hx / (data.r * 0.1)}%`);
-          hl.setAttribute("cy", `${45 + hy / (data.r * 0.1)}%`);
+          const hx = dx * 0.03;
+          const hy = dy * 0.03;
+          hl.style.transform = `translate3d(${hx}px, ${hy}px, 0)`;
         }
       });
       
@@ -161,23 +168,31 @@ export function CameraLensesBackground({ seed }: { seed?: number }) {
   }, [lenses]);
 
   const handleLensClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Add 90 degrees to CSS variable to trigger spin transition
-    const target = e.currentTarget.querySelector(".lens-inner") as HTMLDivElement;
-    if (target) {
-      const currentRot = parseFloat(target.style.getPropertyValue("--rot") || "0");
-      target.style.setProperty("--rot", `${currentRot + 90}deg`);
+    const target = e.currentTarget;
+    const currentRot = parseFloat(target.style.getPropertyValue("--rot") || "0");
+    target.style.setProperty("--rot", `${currentRot + 90}deg`);
+  };
+
+  // Generate aperture blades polygon
+  const renderApertureBlades = () => {
+    const points = [];
+    const numBlades = 7;
+    for (let i = 0; i < numBlades; i++) {
+      const angle = (i * Math.PI * 2) / numBlades;
+      const x = 50 + 10 * Math.cos(angle);
+      const y = 50 + 10 * Math.sin(angle);
+      points.push(`${x},${y}`);
     }
+    return <polygon points={points.join(" ")} fill="#000" stroke="#111" strokeWidth="0.5" />;
   };
 
   return (
     <div 
-      ref={containerRef}
-      className="fixed inset-0 overflow-hidden pointer-events-none bg-[#0a0a0a]"
+      className="fixed inset-0 overflow-hidden pointer-events-none bg-[#050505]"
       style={{ zIndex: -10 }}
     >
-      {/* Soft ambient gradient behind the lenses */}
       <div 
-        className="absolute inset-0 opacity-40 mix-blend-screen"
+        className="absolute inset-0 mix-blend-screen opacity-30"
         style={{
           background: "radial-gradient(circle at 50% 50%, rgba(30, 40, 50, 0.4) 0%, transparent 80%)"
         }}
@@ -187,91 +202,105 @@ export function CameraLensesBackground({ seed }: { seed?: number }) {
         <div
           key={lens.id}
           ref={(el) => { lensesRefs.current[i] = el; }}
-          className="absolute will-change-transform"
+          className="absolute"
           style={{
             left: lens.x - lens.r,
             top: lens.y - lens.r,
             width: lens.r * 2,
             height: lens.r * 2,
+            willChange: "transform",
           }}
         >
-          {/* Inner div handles hover and spin (pointer events enabled so we can hover/click) */}
           <div 
-            className="lens-inner absolute inset-0 pointer-events-auto rounded-full cursor-pointer will-change-transform"
+            className="absolute inset-0 pointer-events-auto rounded-full cursor-pointer"
             style={{ 
               "--rot": `${lens.rotation}deg`,
               transform: "rotate(var(--rot)) scale(1)",
               transition: "transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s ease",
+              willChange: "transform, filter",
             } as React.CSSProperties}
             onClick={handleLensClick}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "rotate(var(--rot)) scale(1.05)";
-              e.currentTarget.style.filter = "brightness(1.2)";
+              e.currentTarget.style.filter = "brightness(1.3) drop-shadow(0 20px 30px rgba(0,0,0,0.8))";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = "rotate(var(--rot)) scale(1)";
-              e.currentTarget.style.filter = "brightness(1)";
+              e.currentTarget.style.filter = "brightness(1) drop-shadow(0 0 0 rgba(0,0,0,0))";
             }}
           >
-            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl">
+            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl overflow-visible">
               <defs>
-                {/* Main Glass Reflection */}
-                <radialGradient id={`glass-${lens.id}`} cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor={lens.color} stopOpacity="0.4" />
-                  <stop offset="60%" stopColor={lens.color} stopOpacity="0.1" />
-                  <stop offset="90%" stopColor="#050505" stopOpacity="0.9" />
+                <radialGradient id={`glass-1-${lens.id}`} cx="40%" cy="40%" r="60%">
+                  <stop offset="0%" stopColor={lens.color} stopOpacity="0.8" />
+                  <stop offset="40%" stopColor={lens.color} stopOpacity="0.3" />
+                  <stop offset="80%" stopColor="#050505" stopOpacity="0.9" />
                   <stop offset="100%" stopColor="#000" stopOpacity="1" />
                 </radialGradient>
                 
-                {/* Outer Barrel Gradient */}
+                <radialGradient id={`glass-2-${lens.id}`} cx="60%" cy="60%" r="50%">
+                  <stop offset="0%" stopColor={lens.secondaryColor} stopOpacity="0.7" />
+                  <stop offset="60%" stopColor="transparent" stopOpacity="0" />
+                </radialGradient>
+                
                 <linearGradient id={`barrel-${lens.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1a1a1a" />
-                  <stop offset="50%" stopColor="#0a0a0a" />
+                  <stop offset="0%" stopColor="#222" />
+                  <stop offset="20%" stopColor="#0f0f0f" />
+                  <stop offset="80%" stopColor="#050505" />
+                  <stop offset="100%" stopColor="#111" />
+                </linearGradient>
+
+                <linearGradient id={`inner-threads-${lens.id}`} x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#050505" />
+                  <stop offset="50%" stopColor="#151515" />
                   <stop offset="100%" stopColor="#050505" />
                 </linearGradient>
                 
-                {/* Inner Threading Gradient */}
-                <linearGradient id={`threads-${lens.id}`} x1="0%" y1="100%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#111" />
-                  <stop offset="100%" stopColor="#222" />
-                </linearGradient>
+                {/* Path for text to curve around the lens */}
+                <path id={`text-path-${lens.id}`} d="M 18,50 a 32,32 0 1,1 64,0 a 32,32 0 1,1 -64,0" />
               </defs>
 
-              {/* Outer Barrel */}
-              <circle cx="50" cy="50" r="49" fill={`url(#barrel-${lens.id})`} />
+              {/* Main Outer Barrel */}
+              <circle cx="50" cy="50" r="49" fill={`url(#barrel-${lens.id})`} stroke="#111" strokeWidth="0.5" />
               
-              {/* Outer Grip / Focus Ring (dashed) */}
-              <circle cx="50" cy="50" r="46" fill="none" stroke="#222" strokeWidth="4" strokeDasharray="2 3" />
+              {/* Fine Knurled Focus Grip */}
+              <circle cx="50" cy="50" r="46.5" fill="none" stroke="#181818" strokeWidth="5" strokeDasharray="0.8 1" />
               
-              {/* Red/Silver Band (like Canon L-series) */}
-              <circle cx="50" cy="50" r="41" fill="none" stroke={lens.ringColor} strokeWidth="1.5" />
+              {/* Secondary Grip */}
+              <circle cx="50" cy="50" r="42" fill="none" stroke="#151515" strokeWidth="2.5" strokeDasharray="1 1.5" />
               
-              {/* Inner Barrel Stepping */}
-              <circle cx="50" cy="50" r="37" fill="#0d0d0d" stroke="#151515" strokeWidth="1" />
-              <circle cx="50" cy="50" r="32" fill="none" stroke={`url(#threads-${lens.id})`} strokeWidth="4" strokeDasharray="0.5 1" />
-              <circle cx="50" cy="50" r="27" fill="#050505" stroke="#111" strokeWidth="0.5" />
+              {/* Red/Silver ID Ring */}
+              <circle cx="50" cy="50" r="39" fill="none" stroke={lens.ringColor} strokeWidth="1" />
               
-              {/* Filter Thread Ring */}
-              <circle cx="50" cy="50" r="24" fill="none" stroke="#1a1a1a" strokeWidth="1" />
+              {/* Text Plate / Ring */}
+              <circle cx="50" cy="50" r="36" fill="#0d0d0d" stroke="#222" strokeWidth="0.5" />
+              <text fontSize="3.5" fill="#555" fontWeight="bold" letterSpacing="0.1em">
+                <textPath href={`#text-path-${lens.id}`} startOffset="10%">
+                  {lens.text}
+                </textPath>
+              </text>
               
-              {/* Glass Element */}
-              <circle cx="50" cy="50" r="23" fill={`url(#glass-${lens.id})`} />
+              {/* Deep Inner Barrel / Filter Threads */}
+              <circle cx="50" cy="50" r="29" fill="none" stroke={`url(#inner-threads-${lens.id})`} strokeWidth="4" strokeDasharray="0.2 0.5" />
+              <circle cx="50" cy="50" r="26" fill="#050505" stroke="#1a1a1a" strokeWidth="0.5" />
               
-              {/* Inner Glass Element (Aperture opening suggestion) */}
-              <circle cx="50" cy="50" r="8" fill="#000" opacity="0.8" />
+              {/* Underlying Aperture Blades */}
+              <g transform="translate(0, 0)">
+                {renderApertureBlades()}
+              </g>
               
-              {/* Reflection Highlight (parallax shifts this!) */}
-              <ellipse 
-                className="lens-highlight"
-                cx="45" cy="45" rx="12" ry="6" 
-                fill="#ffffff" opacity="0.15" 
-                filter="blur(2px)" 
-                transform="rotate(-45 50 50)" 
-                style={{ transition: 'cx 0.1s, cy 0.1s' }}
-              />
+              {/* Glass Element Base */}
+              <circle cx="50" cy="50" r="25" fill={`url(#glass-1-${lens.id})`} />
+              <circle cx="50" cy="50" r="25" fill={`url(#glass-2-${lens.id})`} />
               
-              {/* Secondary faint reflection */}
-              <circle cx="60" cy="60" r="3" fill="#ffffff" opacity="0.1" filter="blur(1px)" />
+              {/* High-Contrast Reflection Highlights (Hardware Accelerated via translate3d) */}
+              <g className="lens-highlight" style={{ willChange: "transform" }}>
+                <ellipse cx="38" cy="38" rx="10" ry="4" fill="#ffffff" opacity="0.6" filter="blur(1px)" transform="rotate(-45 38 38)" />
+                <circle cx="65" cy="65" r="2.5" fill="#ffffff" opacity="0.4" filter="blur(0.5px)" />
+              </g>
+              
+              {/* Final Glare Curve */}
+              <path d="M 30,50 A 20 20 0 0 1 50,30" fill="none" stroke="#ffffff" strokeWidth="1.5" opacity="0.2" filter="blur(1px)" />
             </svg>
           </div>
         </div>
