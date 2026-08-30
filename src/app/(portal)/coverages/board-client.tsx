@@ -92,7 +92,7 @@ export function BoardClient({
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-8rem)] animate-slide-up">
       {/* Board Header Controls */}
-      <div className="flex flex-col sm:flex-row items-center gap-4 justify-between bg-surface/30 p-4 rounded-xl border border-white/5">
+      <div className="flex flex-col sm:flex-row items-center gap-4 justify-between bg-black/50 backdrop-blur-xl p-4 rounded-xl border border-white/10 shadow-lg">
         <div className="w-full sm:w-1/3">
           <input
             type="text"
@@ -122,17 +122,17 @@ export function BoardClient({
           return (
             <div
               key={status}
-              className="flex-shrink-0 w-80 bg-surface/20 border border-white/5 rounded-xl flex flex-col h-full snap-center"
+              className="flex-shrink-0 w-80 bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl flex flex-col h-full snap-center shadow-xl"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, status)}
             >
               {/* Column Header */}
-              <div className="p-4 border-b border-white/5 flex items-center justify-between sticky top-0 bg-surface/80 backdrop-blur-md rounded-t-xl z-10">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-black/60 backdrop-blur-2xl rounded-t-xl z-10">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-white/90 uppercase tracking-wide">
                     {status}
                   </h3>
-                  <span className="text-xs font-semibold text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-semibold text-white/60 bg-white/10 px-2 py-0.5 rounded-full">
                     {colEvents.length}
                   </span>
                 </div>
@@ -151,8 +151,8 @@ export function BoardClient({
                   >
                     <Card
                       className={clsx(
-                        "p-4 border-white/10 bg-surface/50 hover:bg-surface/80 transition-all relative group flex flex-col gap-3",
-                        canManage ? "hover:border-white/20 hover:shadow-lg" : ""
+                        "p-4 border-white/10 bg-[#111116]/80 backdrop-blur-lg hover:bg-[#1a1a24]/90 transition-all relative group flex flex-col gap-3 shadow-lg",
+                        canManage ? "hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)]" : ""
                       )}
                     >
                     {/* Card Content - Jira style hierarchy */}

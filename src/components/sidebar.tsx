@@ -37,7 +37,7 @@ export function Sidebar({ user }: { user: NavUser }) {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-[280px] h-screen bg-[rgba(255,255,255,0.02)] backdrop-blur-xl border-r border-white/10 shrink-0 z-20 overflow-y-auto custom-scrollbar pt-6 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+    <aside className="hidden md:flex flex-col w-[280px] h-screen bg-black/60 backdrop-blur-2xl border-r border-white/10 shrink-0 z-20 overflow-y-auto custom-scrollbar pt-6 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
       {/* Brand Header */}
       <div className="px-8 pb-10">
         <Link href="/" className="flex items-center gap-4 font-light text-xl tracking-[0.15em] hover:opacity-80 transition-opacity">
