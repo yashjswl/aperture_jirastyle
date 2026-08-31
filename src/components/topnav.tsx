@@ -17,7 +17,7 @@ import { NotificationBell } from "./notification-bell";
 
 export function TopNav({ user }: { user: NavUser }) {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-[#0a0a0c]  px-8 shrink-0 z-10 sticky top-0 shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
+    <header className="flex h-16 items-center justify-between glass-panel-back glass-sheen px-8 shrink-0 z-10 sticky top-0">
       <div className="flex items-center gap-6 flex-1">
         {/* Mobile menu button */}
         <button className="md:hidden text-white/50 hover:text-white transition-colors">

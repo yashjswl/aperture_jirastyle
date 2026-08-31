@@ -80,3 +80,34 @@ input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
   opacity: 1;
 }
+
+@keyframes glass-sheen {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.glass-sheen {
+  background-size: 200% 200% !important;
+  animation: glass-sheen 15s ease infinite;
+}
+
+.glass-panel-back {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: linear-gradient(135deg, rgba(236,72,153,0.06) 0%, rgba(59,130,246,0.06) 50%, rgba(168,85,247,0.06) 100%), rgba(10, 10, 12, 0.55) !important;
+  border: 1px solid rgba(255,255,255,0.05) !important;
+  border-top: 1px solid rgba(255,255,255,0.25) !important;
+  border-left: 1px solid rgba(255,255,255,0.25) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.glass-panel-front {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgba(59,130,246,0.12) 50%, rgba(168,85,247,0.12) 100%), rgba(20, 20, 25, 0.75) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-top: 1px solid rgba(255,255,255,0.35) !important;
+  border-left: 1px solid rgba(255,255,255,0.35) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6) !important;
+}

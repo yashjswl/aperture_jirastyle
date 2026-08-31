@@ -44,7 +44,6 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
 
   const defaultWhileHover = interactive && !prefersReducedMotion ? {
     y: -8,
-    boxShadow: "0 20px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.12)",
     transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }
   } : {};
   
@@ -55,13 +54,12 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
       ref={ref}
       onMouseMove={handleMouseMove}
       className={clsx(
-        "relative overflow-hidden border border-white/12 group p-6",
-        "bg-[#08080a]",
+        "relative overflow-hidden group p-6",
+        "glass-panel-front glass-sheen",
         pill ? "rounded-full" : "rounded-[24px]",
         className
       )}
       style={{
-        boxShadow: "0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)"
       }}
       initial={props.initial !== undefined ? props.initial : defaultInitial}
       animate={props.animate !== undefined ? props.animate : defaultAnimate}

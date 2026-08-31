@@ -92,7 +92,7 @@ export function BoardClient({
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-8rem)] animate-slide-up">
       {/* Board Header Controls */}
-      <div className="flex flex-col sm:flex-row items-center gap-4 justify-between bg-[#08080a]  p-4 rounded-xl border border-white/10 shadow-lg">
+      <div className="flex flex-col sm:flex-row items-center gap-4 justify-between glass-panel-back glass-sheen p-4 rounded-xl">
         <div className="w-full sm:w-1/3">
           <input
             type="text"
@@ -122,12 +122,12 @@ export function BoardClient({
           return (
             <div
               key={status}
-              className="flex-shrink-0 w-80 bg-[#08080a]  border border-white/10 rounded-xl flex flex-col h-full snap-center shadow-xl"
+              className="flex-shrink-0 w-80 glass-panel-back glass-sheen rounded-xl flex flex-col h-full snap-center"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, status)}
             >
               {/* Column Header */}
-              <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#0d0d12]  rounded-t-xl z-10">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 glass-panel-back  rounded-t-xl z-10">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-white/90 uppercase tracking-wide">
                     {status}
@@ -151,7 +151,7 @@ export function BoardClient({
                   >
                     <Card
                       className={clsx(
-                        "p-4 border-white/10 bg-[#111116]  hover:bg-[#1a1a24]/90 transition-all relative group flex flex-col gap-3 shadow-lg",
+                        "p-4 glass-panel-front glass-sheen hover:brightness-110 transition-all relative group flex flex-col gap-3 shadow-lg",
                         canManage ? "hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)]" : ""
                       )}
                     >
