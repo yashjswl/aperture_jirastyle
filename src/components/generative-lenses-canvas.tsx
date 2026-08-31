@@ -1,19 +1,26 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Environment, ContactShadows } from "@react-three/drei";
+import { EffectComposer, DepthOfField, Bloom, Vignette, N8AO } from "@react-three/postprocessing";
+import * as THREE from "three";
 
+// --------------------------------------------------------
+// Palette & Utilities
+// --------------------------------------------------------
 const PALETTES = [
-  { id: "blue", center: "#3b82f6", edge: "#1e3a8a" },
-  { id: "purple", center: "#a855f7", edge: "#3b0764" },
-  { id: "green", center: "#10b981", edge: "#064e3b" },
-  { id: "red", center: "#ef4444", edge: "#450a0a" },
-  { id: "amber", center: "#f59e0b", edge: "#451a03" },
-  { id: "teal", center: "#06b6d4", edge: "#083344" },
-  { id: "magenta", center: "#ec4899", edge: "#500724" },
+  "#3b82f6", // Blue
+  "#a855f7", // Purple
+  "#10b981", // Green
+  "#ef4444", // Red
+  "#f59e0b", // Amber
+  "#06b6d4", // Teal
+  "#ec4899", // Magenta
 ];
 
 function createRandom(seed: number) {
-  let s = seed !== undefined ? seed : Math.floor(Math.random() * 1000000);
+  let s = seed;
   return function () {
     let t = (s += 0x6d2b79f5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -22,368 +29,352 @@ function createRandom(seed: number) {
   };
 }
 
-type Ring = {
-  rRatio: number;
-  type: 'chrome' | 'text' | 'metal-dark' | 'metal-light';
-  dashArray: number[];
-};
-
-type Lens = {
+type LensData = {
+  id: string;
   x: number;
   y: number;
   r: number;
-  color: typeof PALETTES[0];
-  depth: number;
-  rings: Ring[];
-  glassR: number;
-  blades: number;
-  shutterStart: number;
-  hoverAmt: number;
+  color: string;
+  hasChrome: boolean;
+  rings: number;
+  height: number;
 };
 
-export function GenerativeLensesCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
-  const lensesRef = useRef<Lens[]>([]);
+// --------------------------------------------------------
+// Procedural Textures (Canvas 2D -> THREE.Texture)
+// --------------------------------------------------------
+function createGrooveTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  
+  // Base rubber
+  ctx.fillStyle = "#222";
+  ctx.fillRect(0, 0, 256, 256);
+  
+  // Horizontal grooves (imperfections)
+  ctx.fillStyle = "#000";
+  for (let i = 0; i < 256; i += 12 + Math.random() * 4) {
+    ctx.fillRect(0, i, 256, 3);
+  }
+  
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1, 2);
+  return tex;
+}
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
+const sharedGrooveBumpMap = createGrooveTexture();
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    let raf: number;
-    let isCancelled = false;
+function createGlassBaseTexture(colorHex: string) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d")!;
+  const cx = 256, cy = 256, r = 256;
+  
+  // Deep glowing ring gradient
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "#030303");       // Near-black center
+  grad.addColorStop(0.3, "#050505");     // Dark inner core
+  grad.addColorStop(0.65, colorHex);     // Saturated mid-ring glow
+  grad.addColorStop(0.85, "#080808");    // Dark falloff
+  grad.addColorStop(1, "#000000");       // Pitch black outer edge
+  
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 512);
+  
+  // Faint concentric circular rings (aperture hints, strictly circular)
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.65, 0, Math.PI * 2); ctx.stroke();
+  
+  return new THREE.CanvasTexture(canvas);
+}
 
-    const PI2 = Math.PI * 2;
+// --------------------------------------------------------
+// Shared Geometries & Materials (Memory Optimization)
+// --------------------------------------------------------
+const barrelGeo = new THREE.CylinderGeometry(1, 1, 1, 64);
+barrelGeo.rotateX(Math.PI / 2); // Align to Z-axis
+barrelGeo.translate(0, 0, 0.5); // Base at Z=0
 
-    const init = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+const circleGeo = new THREE.CircleGeometry(1, 64);
+const ringGeo = new THREE.RingGeometry(0, 1, 64); // Used for circular shutter
 
-      const rand = createRandom(Date.now());
-      const lenses: Lens[] = [];
+const bladeGeo = new THREE.PlaneGeometry(1, 1);
+bladeGeo.translate(0.5, 0, 0);
 
-      // Balanced pool for high-fidelity rendering (fewer tiny lenses to keep 60fps with complex gradients)
-      const pool: number[] = [];
-      for (let i = 0; i < 15; i++) pool.push(140 + rand() * 60); // Huge
-      for (let i = 0; i < 30; i++) pool.push(80 + rand() * 40);  // Large
-      for (let i = 0; i < 80; i++) pool.push(45 + rand() * 30);  // Medium
-      for (let i = 0; i < 150; i++) pool.push(20 + rand() * 20); // Small
+const domeGeo = new THREE.SphereGeometry(1, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.15);
+domeGeo.rotateX(Math.PI / 2);
 
-      pool.sort((a, b) => b - a);
+// Physical Materials
+const rubberMat = new THREE.MeshStandardMaterial({ 
+  color: "#18181a", 
+  roughness: 0.8, 
+  metalness: 0.2,
+  bumpMap: sharedGrooveBumpMap,
+  bumpScale: 0.05 
+});
 
-      for (const r of pool) {
-        for (let attempts = 0; attempts < 3000; attempts++) {
-          const x = -100 + rand() * (width + 200);
-          const y = -100 + rand() * (height + 200);
-          let collision = false;
-          
-          for (const l of lenses) {
-            const dist = Math.hypot(l.x - x, l.y - y);
-            if (dist < (l.r + r) * 0.98) {
-              collision = true;
-              break;
-            }
-          }
-          
-          if (!collision) {
-            const ringCount = 3 + Math.floor(rand() * 4); // 3 to 6 rings
-            const rings: Ring[] = [];
-            let currentR = 0.95;
-            
-            const chromeIndex = rand() > 0.75 ? Math.floor(1 + rand() * (ringCount - 2)) : -1;
-            const textIndex = rand() > 0.6 ? Math.floor(1 + rand() * (ringCount - 2)) : -1;
-            
-            for (let i = 0; i < ringCount; i++) {
-              let type: Ring['type'] = 'metal-dark';
-              if (i === chromeIndex) type = 'chrome';
-              else if (i === textIndex) type = 'text';
-              else type = (i % 2 === 0) ? 'metal-dark' : 'metal-light';
-              
-              rings.push({ 
-                rRatio: currentR, 
-                type,
-                // Random dash pattern for fake text rings
-                dashArray: [2 + rand() * 3, 4 + rand() * 6, 8 + rand() * 10, 4 + rand() * 4]
-              });
-              
-              if (type === 'chrome') currentR -= 0.03 + rand() * 0.03;
-              else if (type === 'text') currentR -= 0.06 + rand() * 0.04;
-              else currentR -= 0.04 + rand() * 0.1;
-            }
+const metalMat = new THREE.MeshStandardMaterial({ 
+  color: "#111111", 
+  roughness: 0.5, 
+  metalness: 0.8 
+});
 
-            lenses.push({
-              x, y, r,
-              color: PALETTES[Math.floor(rand() * PALETTES.length)],
-              depth: 0.2 + rand() * 0.6,
-              rings,
-              glassR: currentR,
-              blades: rand() > 0.5 ? 6 + Math.floor(rand() * 3) : 0, // 6 to 8 blades or none
-              shutterStart: 0,
-              hoverAmt: 0,
-            });
+const chromeMat = new THREE.MeshStandardMaterial({ 
+  color: "#e5e7eb", 
+  roughness: 0.15, 
+  metalness: 1.0 
+});
+
+const shutterMat = new THREE.MeshBasicMaterial({ color: "#050505", side: THREE.DoubleSide });
+
+// Physical Glass Cover (handles the glossy reflection, IOR, and clearcoat)
+const physicalGlassMat = new THREE.MeshPhysicalMaterial({
+  color: "#000000",
+  transmission: 1.0,   // Full glass transmission
+  opacity: 1,
+  metalness: 0,
+  roughness: 0.05,
+  ior: 1.5,
+  thickness: 2.0,
+  specularIntensity: 1,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.05,
+});
+
+// --------------------------------------------------------
+// Individual Lens Component
+// --------------------------------------------------------
+function LensNode({ data, mousePos }: { data: LensData, mousePos: React.MutableRefObject<THREE.Vector2> }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const bladesRef = useRef<THREE.Group>(null);
+  
+  const [shutterOpen, setShutterOpen] = useState(true);
+  const shutterProgress = useRef(1); // 1 = open, 0 = closed
+  const glassR = data.r * 0.75; // inner glass size
+
+
+  // Unique texture for the glass base ring
+  const glassBaseMat = useMemo(() => {
+    const tex = createGlassBaseTexture(data.color);
+    return new THREE.MeshBasicMaterial({ map: tex });
+  }, [data.color]);
+
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+
+    const mx = mousePos.current.x;
+    const my = mousePos.current.y;
+    const dist = Math.hypot(mx - data.x, my - data.y);
+    
+    // Lift and tilt smoothly towards mouse
+    const influence = Math.max(0, 1 - dist / (data.r * 5));
+    
+    const targetZ = influence * data.r * 0.3; // Lift up
+    const targetRotX = (my - data.y) * influence * 0.015;
+    const targetRotY = (mx - data.x) * influence * -0.015;
+
+    groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetZ, delta * 4);
+    groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, targetRotX, delta * 4);
+    groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, delta * 4);
+
+    // Circular Shutter Animation
+    
+    const targetShutter = shutterOpen ? 1.0 : 0.0;
+    shutterProgress.current = THREE.MathUtils.lerp(shutterProgress.current, targetShutter, delta * 15);
+    
+    if (bladesRef.current) {
+      bladesRef.current.children.forEach((blade, i) => {
+        const angle = (i / 12) * Math.PI * 2;
+        const closedRot = angle + Math.PI / 2;
+        const openRot = angle + Math.PI / 2 - 0.5;
+        blade.rotation.z = THREE.MathUtils.lerp(closedRot, openRot, shutterProgress.current);
+        const rOff = THREE.MathUtils.lerp(0.01, 1.2, shutterProgress.current);
+        blade.position.x = Math.cos(angle) * glassR * rOff;
+        blade.position.y = Math.sin(angle) * glassR * rOff;
+      });
+    }
+
+  });
+
+  const handleClick = (e: any) => {
+    e.stopPropagation();
+    setShutterOpen(false);
+    setTimeout(() => setShutterOpen(true), 150); // Snap back open
+  };
+
+  const trimThickness = data.r * 0.08;
+
+  return (
+    <group ref={groupRef} position={[data.x, data.y, 0]} onClick={handleClick}>
+      {/* Outer Barrel (Rubber with grooves) */}
+      <mesh geometry={barrelGeo} material={rubberMat} scale={[data.r, data.r, data.height]} receiveShadow castShadow />
+      
+      {/* Inner Metal Cylinder (Darker inner rim) */}
+      <mesh geometry={barrelGeo} material={metalMat} scale={[data.r * 0.88, data.r * 0.88, data.height + 0.1]} />
+
+      {/* Chrome Trim Ring (20-30% chance) */}
+      {data.hasChrome && (
+        <mesh 
+          geometry={barrelGeo} 
+          material={chromeMat} 
+          scale={[data.r * 0.96, data.r * 0.96, trimThickness]} 
+          position={[0, 0, data.height * 0.8]} 
+        />
+      )}
+
+      {/* Glass Base (The 2D colored glowing ring) */}
+      <mesh geometry={circleGeo} material={glassBaseMat} scale={[glassR, glassR, 1]} position={[0, 0, data.height + 0.05]} />
+
+      {/* Glass Dome (Physical transmission layer for reflections) */}
+      <mesh 
+        geometry={domeGeo} 
+        material={physicalGlassMat} 
+        scale={[glassR, glassR, data.r * 0.3]} // shallow curve
+        position={[0, 0, data.height + 0.06]} 
+      />
+
+      
+      {/* 12-Blade Circular Mechanical Shutter Layer */}
+      <group ref={bladesRef} position={[0, 0, data.height + 0.08]}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <mesh key={i} geometry={bladeGeo} material={shutterMat} scale={[glassR * 1.5, glassR * 0.6, 1]} />
+        ))}
+      </group>
+
+    </group>
+  );
+}
+
+// --------------------------------------------------------
+// Main Scene Manager
+// --------------------------------------------------------
+function LensScene() {
+  const { viewport, camera } = useThree();
+  const mousePos = useRef(new THREE.Vector2(0, 0));
+
+  useFrame((state) => {
+    // Map mouse to world coordinates roughly
+    const mx = (state.mouse.x * viewport.width) / 2;
+    const my = (state.mouse.y * viewport.height) / 2;
+    mousePos.current.set(mx, my);
+    
+    // Parallax
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, state.mouse.x * 6, 0.05);
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, state.mouse.y * 6, 0.05);
+    camera.lookAt(0, 0, 0);
+  });
+
+  // Dense Packed Layout Algorithm
+  const lenses = useMemo(() => {
+    const rand = createRandom(54321); // Fixed seed for stable layout
+    const arr: LensData[] = [];
+    const bounds = 150; 
+    
+    const pool = [];
+    for (let i = 0; i < 6; i++) pool.push(22 + rand() * 8);   // Huge
+    for (let i = 0; i < 15; i++) pool.push(14 + rand() * 6);  // Large
+    for (let i = 0; i < 40; i++) pool.push(7 + rand() * 5);   // Medium
+    for (let i = 0; i < 70; i++) pool.push(3.5 + rand() * 3); // Small
+
+    pool.sort((a, b) => b - a);
+
+    for (const r of pool) {
+      for (let attempts = 0; attempts < 3000; attempts++) {
+        const x = -bounds + rand() * (bounds * 2);
+        const y = -bounds + rand() * (bounds * 2);
+        let collision = false;
+        
+        for (const l of arr) {
+          if (Math.hypot(l.x - x, l.y - y) < (l.r + r) * 0.98) {
+            collision = true;
             break;
           }
         }
-      }
-      
-      lensesRef.current = lenses;
-      
-      mouseRef.current.tx = width / 2;
-      mouseRef.current.ty = height / 2;
-      mouseRef.current.x = width / 2;
-      mouseRef.current.y = height / 2;
-    };
-
-    init();
-
-    let resizeTimer: ReturnType<typeof setTimeout>;
-    const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(init, 300);
-    };
-    window.addEventListener("resize", handleResize);
-
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseRef.current.tx = e.clientX;
-      mouseRef.current.ty = e.clientY;
-    };
-    window.addEventListener("mousemove", handleMouseMove, { passive: true });
-
-    const handleClick = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
-      
-      const mx = mouseRef.current.x;
-      const my = mouseRef.current.y;
-      const cx = width / 2;
-      const cy = height / 2;
-      const dx_m = mx - cx;
-      const dy_m = my - cy;
-
-      for (let i = lensesRef.current.length - 1; i >= 0; i--) {
-        const l = lensesRef.current[i];
-        const px = l.x + dx_m * -0.05 * l.depth;
-        const py = l.y + dy_m * -0.05 * l.depth;
         
-        if (Math.hypot(clickX - px, clickY - py) < l.r) {
-          l.shutterStart = Date.now();
+        if (!collision) {
+          arr.push({
+            id: `lens-${arr.length}`,
+            x, y, r,
+            color: PALETTES[Math.floor(rand() * PALETTES.length)],
+            hasChrome: rand() > 0.75, // 25% chance of premium chrome ring
+            rings: 2 + Math.floor(rand() * 2),
+            height: r * (0.6 + rand() * 0.4),
+          });
           break;
         }
       }
-    };
-    window.addEventListener("click", handleClick);
-
-    const draw = () => {
-      if (isCancelled) return;
-      
-      ctx.fillStyle = "#020202";
-      ctx.fillRect(0, 0, width, height);
-
-      mouseRef.current.x += (mouseRef.current.tx - mouseRef.current.x) * 0.15;
-      mouseRef.current.y += (mouseRef.current.ty - mouseRef.current.y) * 0.15;
-      const mx = mouseRef.current.x;
-      const my = mouseRef.current.y;
-      const cx = width / 2;
-      const cy = height / 2;
-
-      const now = Date.now();
-      const dx_m = mx - cx;
-      const dy_m = my - cy;
-
-      for (const l of lensesRef.current) {
-        const px = l.x + dx_m * -0.05 * l.depth;
-        const py = l.y + dy_m * -0.05 * l.depth;
-
-        const distToMouse = Math.hypot(mx - px, my - py);
-        if (distToMouse < l.r * 1.5) {
-          l.hoverAmt = Math.min(1, l.hoverAmt + 0.1);
-        } else {
-          l.hoverAmt = Math.max(0, l.hoverAmt - 0.05);
-        }
-
-        const scale = 1 + l.hoverAmt * 0.06;
-        const sr = l.r * scale;
-
-        ctx.save();
-        ctx.translate(px, py);
-
-        // 1. Draw Outer Barrel & Shadow
-        ctx.beginPath();
-        ctx.arc(0, 0, sr, 0, PI2);
-        
-        // Studio lighting gradient on outer barrel (softbox top-left)
-        const barrelGrad = ctx.createLinearGradient(-sr, -sr, sr, sr);
-        barrelGrad.addColorStop(0, "#3a3a40");
-        barrelGrad.addColorStop(0.3, "#1a1a1c");
-        barrelGrad.addColorStop(1, "#050505");
-        
-        ctx.fillStyle = barrelGrad;
-        ctx.shadowColor = "rgba(0,0,0,0.9)";
-        ctx.shadowBlur = 20;
-        ctx.shadowOffsetX = 4;
-        ctx.shadowOffsetY = 8;
-        ctx.fill();
-        ctx.shadowColor = "transparent";
-
-        // 2. Draw Concentric Rings
-        for (let i = 0; i < l.rings.length; i++) {
-          const ring = l.rings[i];
-          const ringR = sr * ring.rRatio;
-          
-          ctx.beginPath();
-          ctx.arc(0, 0, ringR, 0, PI2);
-          
-          if (ring.type === 'chrome') {
-            const chromeGrad = ctx.createLinearGradient(-ringR, -ringR, ringR, ringR);
-            chromeGrad.addColorStop(0, "#eeeeee");
-            chromeGrad.addColorStop(0.2, "#ffffff");
-            chromeGrad.addColorStop(0.5, "#888888");
-            chromeGrad.addColorStop(1, "#222222");
-            ctx.fillStyle = chromeGrad;
-            ctx.fill();
-          } else if (ring.type === 'text') {
-            ctx.fillStyle = "#0a0a0a";
-            ctx.fill();
-            
-            // Draw fake text dashed ring
-            ctx.beginPath();
-            ctx.arc(0, 0, ringR * 0.95, 0, PI2);
-            ctx.strokeStyle = "rgba(255,255,255,0.7)";
-            ctx.lineWidth = Math.max(1, sr * 0.015);
-            ctx.setLineDash(ring.dashArray.map(v => v * (sr / 100))); // scale dashes with lens
-            ctx.stroke();
-            ctx.setLineDash([]);
-          } else {
-            ctx.fillStyle = ring.type === 'metal-dark' ? "#111111" : "#18181a";
-            ctx.fill();
-            
-            // Bevel Highlight (1-2px bright arc top-left)
-            ctx.beginPath();
-            ctx.arc(0, 0, ringR, Math.PI, Math.PI * 1.5);
-            ctx.strokeStyle = "rgba(255,255,255,0.15)";
-            ctx.lineWidth = Math.max(1, sr * 0.02);
-            ctx.stroke();
-          }
-          
-          // Inner groove shadow
-          ctx.strokeStyle = "rgba(0,0,0,0.8)";
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-
-        // 3. Draw Inner Glass Element
-        const gR = sr * l.glassR;
-        ctx.beginPath();
-        ctx.arc(0, 0, gR, 0, PI2);
-        
-        // Deep glass core gradient
-        const glassGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, gR);
-        glassGrad.addColorStop(0, "#050508"); // dark center focus
-        glassGrad.addColorStop(0.4, l.color.center); // bright saturated core
-        glassGrad.addColorStop(0.8, l.color.edge); // dark saturated edge
-        glassGrad.addColorStop(1, "#020202"); // rim shadow
-        ctx.fillStyle = glassGrad;
-        ctx.fill();
-
-        // 4. Aperture Blades (Inside glass)
-        if (l.blades > 0) {
-          ctx.beginPath();
-          const bladeScale = gR * 0.65;
-          for (let i = 0; i <= l.blades; i++) {
-            const angle = (i / l.blades) * PI2;
-            const bx = Math.cos(angle) * bladeScale;
-            const by = Math.sin(angle) * bladeScale;
-            if (i === 0) ctx.moveTo(bx, by);
-            else ctx.lineTo(bx, by);
-          }
-          ctx.strokeStyle = "rgba(0,0,0,0.5)";
-          ctx.lineWidth = Math.max(1, gR * 0.02);
-          ctx.stroke();
-        }
-
-        // 5. Optical Reflections (Specular Highlights)
-        const hoverShiftX = l.hoverAmt * gR * 0.4;
-        const hoverShiftY = l.hoverAmt * gR * 0.4;
-
-        // Soft broad reflection (diffuse softbox)
-        const softGlint = ctx.createRadialGradient(
-          -gR*0.2 + hoverShiftX, -gR*0.2 + hoverShiftY, 0, 
-          -gR*0.2 + hoverShiftX, -gR*0.2 + hoverShiftY, gR*0.8
-        );
-        softGlint.addColorStop(0, `rgba(255,255,255, ${0.15 + l.hoverAmt * 0.2})`);
-        softGlint.addColorStop(1, "transparent");
-        ctx.beginPath();
-        ctx.arc(0, 0, gR, 0, PI2);
-        ctx.fillStyle = softGlint;
-        ctx.fill();
-
-        // Sharp bright reflection (bulb/window)
-        ctx.beginPath();
-        ctx.ellipse(
-          -gR*0.35 + hoverShiftX, -gR*0.35 + hoverShiftY, 
-          gR*0.25, gR*0.08, 
-          Math.PI / -4, 0, PI2
-        );
-        ctx.fillStyle = `rgba(255,255,255, ${0.4 + l.hoverAmt * 0.4})`;
-        ctx.fill();
-
-        // 6. Mechanical Shutter Animation
-        if (l.shutterStart > 0) {
-          const elapsed = now - l.shutterStart;
-          const duration = 250; 
-          if (elapsed < duration) {
-            const progress = elapsed / duration;
-            const aperture = Math.abs(progress - 0.5) * 2;
-            
-            ctx.beginPath();
-            ctx.arc(0, 0, gR, 0, PI2, false);
-            ctx.arc(0, 0, gR * aperture, 0, PI2, true);
-            ctx.fillStyle = "#050505";
-            ctx.fill();
-            
-            // Draw blade lines on closing shutter
-            ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
-              const angle = (i / 6) * PI2 + progress * Math.PI;
-              ctx.moveTo(Math.cos(angle) * (gR * aperture), Math.sin(angle) * (gR * aperture));
-              ctx.lineTo(Math.cos(angle + 0.5) * gR, Math.sin(angle + 0.5) * gR);
-            }
-            ctx.strokeStyle = "#1a1a1a";
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            
-          } else {
-            l.shutterStart = 0;
-          }
-        }
-
-        ctx.restore();
-      }
-
-      raf = requestAnimationFrame(draw);
-    };
-
-    raf = requestAnimationFrame(draw);
-
-    return () => {
-      isCancelled = true;
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("click", handleClick);
-    };
+    }
+    return arr;
   }, []);
 
   return (
+    <>
+      <color attach="background" args={["#020202"]} />
+      
+      {/* 
+        Problem 5 Fix: One consistent global "key light" direction (top-left).
+        This guarantees all shadows and specular reflections (soft elliptical highlights) match.
+      */}
+      <ambientLight intensity={0.15} />
+      <directionalLight 
+        position={[-40, 50, 40]} // Top-Left
+        intensity={3} 
+        castShadow 
+        shadow-mapSize={[1024, 1024]} 
+      />
+      
+      {/* Soft rim light for barrel edges */}
+      <spotLight position={[50, -50, -10]} intensity={1} color="#e0f2fe" />
+
+      {/* Lenses */}
+      <group position={[0, 0, 0]}>
+        {lenses.map(data => (
+          <LensNode key={data.id} data={data} mousePos={mousePos} />
+        ))}
+      </group>
+
+      {/* Post Processing for Photographic Realism */}
+      <EffectComposer>
+        {/* Contact Shadows / Ambient Occlusion (Solves Problem 4) */}
+        <N8AO aoRadius={4} intensity={2} halfRes />
+        {/* Macro photography bokeh */}
+        <DepthOfField focusDistance={0} focalLength={0.15} bokehScale={3} height={480} />
+        {/* Glow for the saturated glass core */}
+        <Bloom luminanceThreshold={0.7} luminanceSmoothing={0.9} intensity={0.4} />
+        <Vignette eskil={false} offset={0.1} darkness={1.2} />
+      </EffectComposer>
+    </>
+  );
+}
+
+// --------------------------------------------------------
+// Wrapper Component
+// --------------------------------------------------------
+export function GenerativeLensesCanvas() {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return <div className="fixed inset-0 bg-[#020202] z-[-10]" />;
+
+  return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: -10 }}>
-      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-auto cursor-pointer block" />
+      <Canvas 
+        shadows 
+        camera={{ position: [0, 0, 80], fov: 25 }} // Telephoto/Macro FOV
+        className="absolute inset-0 pointer-events-auto cursor-pointer block"
+      >
+        <LensScene />
+      </Canvas>
       <div className="absolute inset-0 bg-black/40 pointer-events-none" />
     </div>
   );
