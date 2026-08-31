@@ -44,6 +44,8 @@ type LensData = {
 // Procedural Textures (Canvas 2D -> THREE.Texture)
 // --------------------------------------------------------
 function createGrooveTexture() {
+  if (typeof document === "undefined") return null;
+
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 256;
@@ -66,9 +68,14 @@ function createGrooveTexture() {
   return tex;
 }
 
-const sharedGrooveBumpMap = createGrooveTexture();
+let sharedGrooveBumpMap: THREE.Texture | null = null;
+if (typeof document !== "undefined") {
+  sharedGrooveBumpMap = createGrooveTexture();
+}
 
 function createGlassBaseTexture(colorHex: string) {
+  if (typeof document === "undefined") return null;
+
   const canvas = document.createElement("canvas");
   canvas.width = 512;
   canvas.height = 512;
