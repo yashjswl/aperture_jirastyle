@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ImageLensesBackground } from "@/components/image-lenses-background";
+import { GenerativeLensesCanvas } from "@/components/generative-lenses-canvas";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -24,7 +24,7 @@ export default function RootLayout({
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-foreground font-sans bg-transparent">
-        <ImageLensesBackground />
+        <GenerativeLensesCanvas />
         {children}
       </body>
     </html>
