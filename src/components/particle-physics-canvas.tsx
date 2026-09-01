@@ -24,12 +24,12 @@ function createParticleSprites() {
       c.width = r * 4;
       c.height = r * 4;
       const ctx = c.getContext("2d")!;
-      const grad = ctx.createRadialGradient(r * 2, r * 2, r * 0.2, r * 2, r * 2, r * 2);
+      const grad = ctx!.createRadialGradient(r * 2, r * 2, r * 0.2, r * 2, r * 2, r * 2);
       grad.addColorStop(0, "#ffffff");
       grad.addColorStop(0.3, color);
       grad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, r * 4, r * 4);
+      ctx!.fillStyle = grad;
+      ctx!.fillRect(0, 0, r * 4, r * 4);
       sizeArr.push(c);
     }
     sprites.push(sizeArr);
@@ -134,7 +134,7 @@ export function ParticlePhysicsBackground() {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = width * dpr;
       canvas.height = height * dpr;
-      ctx.scale(dpr, dpr);
+      ctx!.scale(dpr, dpr);
       
       cols = Math.ceil(width / INTERACTION_RADIUS);
       rows = Math.ceil(height / INTERACTION_RADIUS);
@@ -201,10 +201,10 @@ export function ParticlePhysicsBackground() {
       const mRadiusSq = (mouse.down ? 300 : 150) ** 2;
 
       // Render: Trails (fade instead of clear)
-      ctx.fillStyle = "rgba(2, 2, 2, 0.25)";
-      ctx.fillRect(0, 0, width, height);
+      ctx!.fillStyle = "rgba(2, 2, 2, 0.25)";
+      ctx!.fillRect(0, 0, width, height);
       
-      ctx.lineWidth = 1;
+      ctx!.lineWidth = 1;
       // We will batch lines by type (attract vs repel)
       const attractLines: number[] = [];
       const repelLines: number[] = [];
@@ -319,7 +319,7 @@ export function ParticlePhysicsBackground() {
       }
 
       // 3. Draw Lines (Batched)
-      ctx.globalCompositeOperation = "screen";
+      ctx!.globalCompositeOperation = "screen";
       
       const drawLineBatch = (lines: number[], strokeStyleBase: string) => {
         if (lines.length === 0) return;
@@ -329,19 +329,19 @@ export function ParticlePhysicsBackground() {
           const lowerAlphaThresh = 1 - ((step + 1) / 5);
           let hasLines = false;
           
-          ctx.beginPath();
+          ctx!.beginPath();
           for (let k = 0; k < lines.length; k += 5) {
             const distSq = lines[k + 4];
             const opacity = 1 - Math.sqrt(distSq) / INTERACTION_RADIUS;
             if (opacity <= alphaThresh && opacity > lowerAlphaThresh) {
-              ctx.moveTo(lines[k], lines[k + 1]);
-              ctx.lineTo(lines[k + 2], lines[k + 3]);
+              ctx!.moveTo(lines[k], lines[k + 1]);
+              ctx!.lineTo(lines[k + 2], lines[k + 3]);
               hasLines = true;
             }
           }
           if (hasLines) {
-            ctx.strokeStyle = `rgba(${strokeStyleBase}, ${alphaThresh * 0.4})`;
-            ctx.stroke();
+            ctx!.strokeStyle = `rgba(${strokeStyleBase}, ${alphaThresh * 0.4})`;
+            ctx!.stroke();
           }
         }
       };
@@ -351,7 +351,7 @@ export function ParticlePhysicsBackground() {
       // Repel lines (same charges) -> Subtle Red/Pink
       drawLineBatch(repelLines, "239, 68, 68");
 
-      ctx.globalCompositeOperation = "source-over";
+      ctx!.globalCompositeOperation = "source-over";
 
       // 4. Draw Particles (Sprites)
       if (sprites.length > 0) {
@@ -359,7 +359,7 @@ export function ParticlePhysicsBackground() {
           const s = sprites[colorIdx[i]][sizeIdx[i]];
           if (s) {
             const r = (sizeIdx[i] === 0 ? 4 : (sizeIdx[i] === 1 ? 8 : 12));
-            ctx.drawImage(s, posX[i] - r * 2, posY[i] - r * 2);
+            ctx!.drawImage(s, posX[i] - r * 2, posY[i] - r * 2);
           }
         }
       }
