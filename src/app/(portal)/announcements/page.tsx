@@ -3,12 +3,12 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { isCoreOrAbove } from "@/lib/roles";
+import { isWebadmin } from "@/lib/roles";
 import { AnnouncementControls } from "./announcement-controls";
 
 export default async function AnnouncementsPage() {
   const session = await auth();
-  const canManage = isCoreOrAbove(session!.user.role);
+  const canManage = isWebadmin(session!.user.role);
 
   const announcements = await prisma.announcement.findMany({
     orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],

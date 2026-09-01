@@ -35,7 +35,7 @@ export default async function MemberProfilePage({
 
   if (!member) notFound();
 
-  const isOwnProfile = session?.user.id === member.id;
+  const canEdit = session?.user.role === "WEBADMIN";
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -72,7 +72,7 @@ export default async function MemberProfilePage({
         </Card>
       )}
 
-      {isOwnProfile && (
+      {canEdit && (
         <Card>
           <h2 className="font-medium">Edit your profile</h2>
           <p className="mb-4 text-sm text-muted">

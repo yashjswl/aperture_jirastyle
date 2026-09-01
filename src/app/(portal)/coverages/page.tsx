@@ -1,11 +1,11 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { isCoreOrAbove } from "@/lib/roles";
+import { isWebadmin } from "@/lib/roles";
 import { BoardClient } from "./board-client";
 
 export default async function EventsPage() {
   const session = await auth();
-  const canManage = isCoreOrAbove(session!.user.role);
+  const canManage = isWebadmin(session!.user.role);
 
   const events = await prisma.event.findMany({
     orderBy: { startsAt: "desc" },

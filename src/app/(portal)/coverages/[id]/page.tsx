@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { RoleBadge } from "@/components/ui/badge";
-import { isCoreOrAbove } from "@/lib/roles";
+import { isWebadmin } from "@/lib/roles";
 import {
   StatusSelect,
   DeleteEventButton,
@@ -20,7 +20,7 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params;
   const session = await auth();
-  const canManage = isCoreOrAbove(session!.user.role);
+  const canManage = isWebadmin(session!.user.role);
 
   const event = await prisma.event.findUnique({
     where: { id },

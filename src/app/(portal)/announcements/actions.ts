@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { isCoreOrAbove } from "@/lib/roles";
+import { isWebadmin } from "@/lib/roles";
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -15,7 +15,7 @@ export async function createAnnouncementAction(
   formData: FormData
 ): Promise<AnnouncementFormState> {
   const session = await auth();
-  if (!session?.user || !isCoreOrAbove(session.user.role)) {
+  if (!session?.user || !isWebadmin(session.user.role)) {
     return { error: "Only Core Members and above can post announcements." };
   }
 
@@ -66,7 +66,7 @@ export async function createAnnouncementAction(
 
 export async function togglePinAction(announcementId: string, pinned: boolean) {
   const session = await auth();
-  if (!session?.user || !isCoreOrAbove(session.user.role)) return;
+  if (!session?.user || !isWebadmin(session.user.role)) return;
 
   await prisma.announcement.update({
     where: { id: announcementId },
@@ -77,7 +77,7 @@ export async function togglePinAction(announcementId: string, pinned: boolean) {
 
 export async function deleteAnnouncementAction(announcementId: string) {
   const session = await auth();
-  if (!session?.user || !isCoreOrAbove(session.user.role)) return;
+  if (!session?.user || !isWebadmin(session.user.role)) return;
 
   await prisma.announcement.delete({ where: { id: announcementId } });
   revalidatePath("/announcements");

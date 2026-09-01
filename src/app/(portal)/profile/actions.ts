@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
+import { isWebadmin } from "@/lib/roles";
 import { prisma } from "@/lib/prisma";
 
 import { createClient } from "@supabase/supabase-js";
@@ -14,7 +15,7 @@ export async function updateProfileAction(
   formData: FormData
 ): Promise<ProfileFormState> {
   const session = await auth();
-  if (!session?.user) return { error: "Not authenticated" };
+  if (!session?.user || !isWebadmin(session.user.role)) return { error: "Only Webadmins can make changes." };
 
   const name = String(formData.get("name") ?? "").trim();
   const password = String(formData.get("password") ?? "");

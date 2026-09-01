@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { isCoreOrAbove } from "@/lib/roles";
+import { isWebadmin } from "@/lib/roles";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { NewEventForm } from "./new-event-form";
@@ -11,7 +11,7 @@ export default async function NewEventPage({
   searchParams: Promise<{ title?: string; start?: string; end?: string }>;
 }) {
   const session = await auth();
-  if (!isCoreOrAbove(session!.user.role)) redirect("/coverages");
+  if (!isWebadmin(session!.user.role)) redirect("/coverages");
 
   const { title, start, end } = await searchParams;
 

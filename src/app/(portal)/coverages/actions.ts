@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { isCoreOrAbove } from "@/lib/roles";
+import { isWebadmin } from "@/lib/roles";
 import { sendPushNotification } from "@/lib/webpush";
 
 export type EventFormState = { error?: string } | undefined;
 
 async function requireCoreOrAbove() {
   const session = await auth();
-  if (!session?.user || !isCoreOrAbove(session.user.role)) {
+  if (!session?.user || !isWebadmin(session.user.role)) {
     return null;
   }
   return session;
