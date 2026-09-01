@@ -2,95 +2,110 @@
 
 import React, { useEffect, useRef, useState } from "react";
 
-const MAX_PARTICLES = 600;
-const INTERACTION_RADIUS = 120;
-const R_SQ = INTERACTION_RADIUS * INTERACTION_RADIUS;
-const MIN_DIST_SQ = 400; // Softening factor (20px)
-const DAMPING = 0.92;
-const MAX_SPEED = 400; 
+// --- Constants & Config ---
+const BASE_BG_COLOR = "#06060a";
+const HUES = [255, 165, 15, 335, 205]; // violet, orange, yellow, pink, teal
 
-const PALETTE = ["#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#ec4899"];
+interface Config {
+  numParticles: number;
+  numOrbs: number;
+  starSpawnRate: number; // probability per frame
+}
 
-function createParticleSprites() {
-  if (typeof document === "undefined") return [];
-  // Generate 3 sizes for each color
-  const sprites: HTMLCanvasElement[][] = [];
-  const sizes = [4, 8, 12]; // Small, Medium, Large radius
-  
-  for (const color of PALETTE) {
-    const sizeArr = [];
-    for (const r of sizes) {
-      const c = document.createElement("canvas");
-      c.width = r * 4;
-      c.height = r * 4;
-      const ctx = c.getContext("2d")!;
-      const grad = ctx!.createRadialGradient(r * 2, r * 2, r * 0.2, r * 2, r * 2, r * 2);
-      grad.addColorStop(0, "#ffffff");
-      grad.addColorStop(0.3, color);
-      grad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx!.fillStyle = grad;
-      ctx!.fillRect(0, 0, r * 4, r * 4);
-      sizeArr.push(c);
-    }
-    sprites.push(sizeArr);
-  }
-  return sprites;
+const MODES = {
+  calm: { numParticles: 130, numOrbs: 26, starSpawnRate: 0.005 },
+  event: { numParticles: 190, numOrbs: 40, starSpawnRate: 0.015 },
+};
+
+// --- Helper Functions ---
+function rand(min: number, max: number) {
+  return Math.random() * (max - min) + min;
+}
+
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min)) + min;
 }
 
 export function ParticlePhysicsBackground() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fgCanvasRef = useRef<HTMLCanvasElement>(null);
+  const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  const [mode, setMode] = useState<"electrostatic" | "magnetic">("electrostatic");
+
+  const [mode, setMode] = useState<"calm" | "event">("calm");
   const modeRef = useRef(mode);
-  
+
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
 
   useEffect(() => {
-    if (!canvasRef.current || !containerRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
+    if (!fgCanvasRef.current || !bgCanvasRef.current || !containerRef.current) return;
+    const fgCanvas = fgCanvasRef.current;
+    const bgCanvas = bgCanvasRef.current;
+    const fgCtx = fgCanvas.getContext("2d", { alpha: false });
+    const bgCtx = bgCanvas.getContext("2d", { alpha: false });
+    if (!fgCtx || !bgCtx) return;
 
     let width = 0;
     let height = 0;
-    let particleCount = 350; // Starting adaptive count
-    
-    // Arrays for Spatial Hash
-    let cols = 0;
-    let rows = 0;
-    let head = new Int32Array(0);
-    let next = new Int32Array(MAX_PARTICLES);
 
-    // Typed Arrays for Physics
-    const posX = new Float32Array(MAX_PARTICLES);
-    const posY = new Float32Array(MAX_PARTICLES);
-    const velX = new Float32Array(MAX_PARTICLES);
-    const velY = new Float32Array(MAX_PARTICLES);
-    const charge = new Int8Array(MAX_PARTICLES); // +1 or -1
-    const colorIdx = new Uint8Array(MAX_PARTICLES);
-    const sizeIdx = new Uint8Array(MAX_PARTICLES);
-    const mass = new Float32Array(MAX_PARTICLES);
+    // --- State ---
+    let particles: any[] = [];
+    let orbs: any[] = [];
+    let gravityWells: any[] = [];
+    let shootingStars: any[] = [];
+    let globalHueShift = 0;
+    let frame = 0;
+    let rafId: number;
 
-    // Initialize particles
-    for (let i = 0; i < MAX_PARTICLES; i++) {
-      posX[i] = Math.random() * window.innerWidth;
-      posY[i] = Math.random() * window.innerHeight;
-      velX[i] = (Math.random() - 0.5) * 50;
-      velY[i] = (Math.random() - 0.5) * 50;
-      charge[i] = Math.random() > 0.5 ? 1 : -1;
-      colorIdx[i] = Math.floor(Math.random() * PALETTE.length);
-      sizeIdx[i] = Math.floor(Math.random() * 3);
-      mass[i] = sizeIdx[i] === 0 ? 0.5 : (sizeIdx[i] === 1 ? 1.0 : 2.0);
-    }
-
-    const sprites = createParticleSprites();
-    
-    // Interaction
     const mouse = { x: -1000, y: -1000, down: false };
-    
+
+    // --- Initialization ---
+    const initEntities = (w: number, h: number) => {
+      const config = MODES[modeRef.current];
+      
+      particles = Array.from({ length: config.numParticles }, () => ({
+        x: rand(0, w),
+        y: rand(0, h),
+        vx: rand(-0.5, 0.5),
+        vy: rand(-0.5, 0.5),
+        q: Math.random() > 0.5 ? 1 : -1,
+        r: rand(1.4, 4),
+        phase: rand(0, Math.PI * 2),
+        hueIdx: randInt(0, HUES.length),
+      }));
+
+      orbs = Array.from({ length: config.numOrbs }, () => ({
+        x: rand(0, w),
+        y: rand(0, h),
+        vx: rand(-0.1, 0.1),
+        vy: rand(-0.1, 0.1),
+        r: rand(40, 120),
+        hueIdx: randInt(0, HUES.length),
+        opacity: rand(0.05, 0.15),
+      }));
+    };
+
+    const resize = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2
+      
+      [fgCanvas, bgCanvas].forEach((c) => {
+        c.width = width * dpr;
+        c.height = height * dpr;
+      });
+      
+      fgCtx.scale(dpr, dpr);
+      bgCtx.scale(dpr, dpr);
+      
+      initEntities(width, height);
+    };
+
+    window.addEventListener("resize", resize);
+    resize();
+
+    // --- Event Listeners ---
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if ('touches' in e) {
         mouse.x = e.touches[0].clientX;
@@ -100,22 +115,24 @@ export function ParticlePhysicsBackground() {
         mouse.y = e.clientY;
       }
     };
-    const handleDown = () => mouse.down = true;
-    const handleUp = () => mouse.down = false;
+    const handleDown = () => (mouse.down = true);
+    const handleUp = () => (mouse.down = false);
     
-    const handleClick = (e: MouseEvent) => {
-      // Burst effect: Push nearby particles
+    const handleDoubleClick = (e: MouseEvent) => {
       const mx = e.clientX;
       const my = e.clientY;
-      for (let i = 0; i < particleCount; i++) {
-        const dx = posX[i] - mx;
-        const dy = posY[i] - my;
+      gravityWells.push({ x: mx, y: my, life: 220, maxLife: 220 });
+      
+      // Spawn burst impulse on nearby particles
+      for (const p of particles) {
+        const dx = p.x - mx;
+        const dy = p.y - my;
         const distSq = dx * dx + dy * dy;
-        if (distSq < 40000) {
-          const dist = Math.sqrt(distSq);
-          const force = 5000 / Math.max(dist, 10);
-          velX[i] += (dx / dist) * force;
-          velY[i] += (dy / dist) * force;
+        if (distSq < 130 * 130) {
+          const dist = Math.sqrt(distSq) || 1;
+          const force = 150 / dist; // outward burst
+          p.vx += (dx / dist) * force;
+          p.vy += (dy / dist) * force;
         }
       }
     };
@@ -126,291 +143,300 @@ export function ParticlePhysicsBackground() {
     window.addEventListener("mouseup", handleUp);
     window.addEventListener("touchstart", handleDown);
     window.addEventListener("touchend", handleUp);
-    window.addEventListener("click", handleClick);
+    window.addEventListener("dblclick", handleDoubleClick);
 
-    const resize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      ctx!.scale(dpr, dpr);
-      
-      cols = Math.ceil(width / INTERACTION_RADIUS);
-      rows = Math.ceil(height / INTERACTION_RADIUS);
-      head = new Int32Array(cols * rows);
-    };
-    window.addEventListener("resize", resize);
-    resize();
-
-    // Respect reduced motion
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // Time tracking
-    let lastTime = performance.now();
-    let frameCount = 0;
-    let lastFpsTime = lastTime;
-    let raf: number;
-    let isPaused = false;
+    // --- Main Loop ---
+    const step = () => {
+      rafId = requestAnimationFrame(step);
+      if (prefersReduced) return; // Freeze physics
 
-    const handleVisibility = () => {
-      isPaused = document.hidden;
-      if (!isPaused) lastTime = performance.now();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
+      frame++;
+      globalHueShift += 0.05;
+      const config = MODES[modeRef.current];
 
-    function step() {
-      raf = requestAnimationFrame(step);
-      if (isPaused) return;
-
-      const now = performance.now();
-      let dt = (now - lastTime) / 1000;
-      lastTime = now;
+      // 1. Background Orbs (Parallax Layer)
+      bgCtx.fillStyle = BASE_BG_COLOR;
+      bgCtx.fillRect(0, 0, width, height);
       
-      // Clamp dt to avoid huge jumps on lag spikes
-      if (dt > 0.05) dt = 0.05;
-      
-      // Adaptive FPS
-      frameCount++;
-      if (now - lastFpsTime > 1000) {
-        const fps = frameCount;
-        frameCount = 0;
-        lastFpsTime = now;
+      bgCtx.filter = 'blur(6px)';
+      bgCtx.globalCompositeOperation = "screen";
+      for (const orb of orbs) {
+        orb.x += orb.vx;
+        orb.y += orb.vy;
+        if (orb.x < -orb.r) orb.x = width + orb.r;
+        if (orb.x > width + orb.r) orb.x = -orb.r;
+        if (orb.y < -orb.r) orb.y = height + orb.r;
+        if (orb.y > height + orb.r) orb.y = -orb.r;
+
+        const h = (HUES[orb.hueIdx] + globalHueShift) % 360;
+        bgCtx.beginPath();
+        bgCtx.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
+        bgCtx.fillStyle = `hsla(${h}, 70%, 60%, ${orb.opacity})`;
+        bgCtx.fill();
+      }
+      bgCtx.filter = 'none';
+      bgCtx.globalCompositeOperation = "source-over";
+
+      // 2. Foreground Trails & Clear
+      fgCtx.fillStyle = `rgba(6, 6, 10, 0.2)`;
+      fgCtx.fillRect(0, 0, width, height);
+
+      // Mouse attraction params
+      const mouseRadius = mouse.down ? 220 : 130;
+      const mouseRadiusSq = mouseRadius * mouseRadius;
+
+      // 3. Process Gravity Wells
+      for (let i = gravityWells.length - 1; i >= 0; i--) {
+        const gw = gravityWells[i];
+        gw.life--;
+        if (gw.life <= 0) {
+          gravityWells.splice(i, 1);
+        }
+      }
+
+      // 4. Physics: Particle-Particle (O(n^2) but capped at ~190)
+      for (let i = 0; i < particles.length; i++) {
+        const p1 = particles[i];
+        let fx = 0;
+        let fy = 0;
+
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const distSq = dx * dx + dy * dy;
+
+          if (distSq < 220 * 220) {
+            // Coulomb interaction
+            const dist = Math.sqrt(distSq);
+            const force = (p1.q * p2.q * 150) / Math.max(distSq, 50); // repulsion/attraction
+            
+            const px = (dx / dist) * force;
+            const py = (dy / dist) * force;
+            
+            fx -= px;
+            fy -= py;
+            p2.vx += px;
+            p2.vy += py;
+
+            // Render curved connections
+            if (dist < 95) {
+              const alpha = 1 - (dist / 95);
+              const cpX = (p1.x + p2.x) / 2 + (p1.y - p2.y) * 0.15;
+              const cpY = (p1.y + p2.y) / 2 + (p2.x - p1.x) * 0.15;
+              
+              fgCtx.beginPath();
+              fgCtx.moveTo(p1.x, p1.y);
+              fgCtx.quadraticCurveTo(cpX, cpY, p2.x, p2.y);
+              fgCtx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+              fgCtx.lineWidth = 1;
+              fgCtx.stroke();
+            }
+          }
+        }
+        p1.vx += fx;
+        p1.vy += fy;
+
+        // Mouse attraction
+        const mdx = p1.x - mouse.x;
+        const mdy = p1.y - mouse.y;
+        const mdSq = mdx * mdx + mdy * mdy;
+        if (mdSq < mouseRadiusSq) {
+          const mDist = Math.sqrt(mdSq) || 1;
+          const pull = (1 - mDist / mouseRadius) * 0.5;
+          p1.vx -= (mdx / mDist) * pull;
+          p1.vy -= (mdy / mDist) * pull;
+        }
+
+        // Gravity Wells
+        for (const gw of gravityWells) {
+          const gdx = p1.x - gw.x;
+          const gdy = p1.y - gw.y;
+          const gdSq = gdx * gdx + gdy * gdy;
+          if (gdSq < 130 * 130) {
+            const gDist = Math.sqrt(gdSq) || 1;
+            const lifeRatio = gw.life / gw.maxLife;
+            // Eased falloff: stronger near center
+            const falloff = Math.pow(1 - gDist / 130, 2);
+            
+            const pullF = 0.8 * lifeRatio * falloff;
+            const swirlF = 1.2 * lifeRatio * falloff;
+
+            // Pull
+            p1.vx -= (gdx / gDist) * pullF;
+            p1.vy -= (gdy / gDist) * pullF;
+            
+            // Swirl (perpendicular)
+            p1.vx -= (gdy / gDist) * swirlF;
+            p1.vy += (gdx / gDist) * swirlF;
+          }
+        }
+
+        // Damping, Clamping & Update
+        p1.vx *= 0.965;
+        p1.vy *= 0.965;
         
-        if (fps < 50 && particleCount > 100) {
-          particleCount -= 20; // Reduce density to maintain 60fps
-        } else if (fps > 58 && particleCount < MAX_PARTICLES) {
-          particleCount += 10;
+        const speed = Math.hypot(p1.vx, p1.vy);
+        if (speed > 5) {
+          p1.vx = (p1.vx / speed) * 5;
+          p1.vy = (p1.vy / speed) * 5;
+        }
+
+        p1.x += p1.vx;
+        p1.y += p1.vy;
+
+        // Wrap around edges
+        if (p1.x < 0) p1.x += width;
+        if (p1.x > width) p1.x -= width;
+        if (p1.y < 0) p1.y += height;
+        if (p1.y > height) p1.y -= height;
+      }
+
+      // 5. Render Particles
+      fgCtx.globalCompositeOperation = "screen";
+      for (const p of particles) {
+        const h = (HUES[p.hueIdx] + globalHueShift) % 360;
+        const alpha = 0.5 + 0.5 * Math.sin(frame * 0.05 + p.phase);
+        
+        fgCtx.beginPath();
+        fgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        fgCtx.fillStyle = `hsla(${h}, 80%, 70%, ${alpha})`;
+        fgCtx.shadowBlur = 7;
+        fgCtx.shadowColor = `hsla(${h}, 80%, 70%, 1)`;
+        fgCtx.fill();
+      }
+      fgCtx.shadowBlur = 0; // reset
+      fgCtx.globalCompositeOperation = "source-over";
+
+      // 6. Shooting Stars
+      if (Math.random() < config.starSpawnRate) {
+        const fromLeft = Math.random() > 0.5;
+        shootingStars.push({
+          x: fromLeft ? 0 : width,
+          y: rand(0, height * 0.6),
+          vx: fromLeft ? rand(5, 10) : rand(-10, -5),
+          vy: rand(2, 6),
+          trail: [],
+          life: 300,
+        });
+      }
+
+      for (let i = shootingStars.length - 1; i >= 0; i--) {
+        const ss = shootingStars[i];
+        ss.life--;
+        
+        // Gravity Well impact on shooting stars
+        for (const gw of gravityWells) {
+          const gdx = ss.x - gw.x;
+          const gdy = ss.y - gw.y;
+          const gdSq = gdx * gdx + gdy * gdy;
+          if (gdSq < 200 * 200) {
+            const gDist = Math.sqrt(gdSq) || 1;
+            const lifeRatio = gw.life / gw.maxLife;
+            const falloff = 1 - gDist / 200;
+            
+            const pullF = 2.0 * lifeRatio * falloff;
+            const swirlF = 3.0 * lifeRatio * falloff;
+
+            ss.vx -= (gdx / gDist) * pullF;
+            ss.vy -= (gdy / gDist) * pullF;
+            ss.vx -= (gdy / gDist) * swirlF;
+            ss.vy += (gdx / gDist) * swirlF;
+          }
+        }
+
+        // Limit speed
+        const speed = Math.hypot(ss.vx, ss.vy);
+        if (speed > 15) {
+          ss.vx = (ss.vx / speed) * 15;
+          ss.vy = (ss.vy / speed) * 15;
+        }
+
+        ss.x += ss.vx;
+        ss.y += ss.vy;
+        
+        ss.trail.unshift({ x: ss.x, y: ss.y });
+        if (ss.trail.length > 14) ss.trail.pop();
+
+        // Draw trail dots
+        for (let j = 0; j < ss.trail.length; j++) {
+          const tp = ss.trail[j];
+          const opacity = 1 - j / 14;
+          fgCtx.beginPath();
+          fgCtx.arc(tp.x, tp.y, 1.5, 0, Math.PI * 2);
+          fgCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+          fgCtx.fill();
+        }
+
+        if (ss.life <= 0 || ss.x < -100 || ss.x > width + 100 || ss.y > height + 100) {
+          shootingStars.splice(i, 1);
         }
       }
 
-      // 1. Build Spatial Hash Grid
-      head.fill(-1);
-      for (let i = 0; i < particleCount; i++) {
-        let col = Math.floor(posX[i] / INTERACTION_RADIUS);
-        let row = Math.floor(posY[i] / INTERACTION_RADIUS);
-        if (col < 0) col = 0; else if (col >= cols) col = cols - 1;
-        if (row < 0) row = 0; else if (row >= rows) row = rows - 1;
-        const cell = col + row * cols;
-        next[i] = head[cell];
-        head[cell] = i;
+      // 7. Render Gravity Wells (expanding fading rings)
+      for (const gw of gravityWells) {
+        const lifeRatio = gw.life / gw.maxLife;
+        const r = 130 * (1 - Math.pow(lifeRatio, 3)); // expands outward rapidly then slows
+        fgCtx.beginPath();
+        fgCtx.arc(gw.x, gw.y, r, 0, Math.PI * 2);
+        fgCtx.strokeStyle = `rgba(255, 255, 255, ${lifeRatio * 0.4})`;
+        fgCtx.lineWidth = 1.5;
+        fgCtx.stroke();
       }
 
-      const isMagnetic = modeRef.current === "magnetic";
-      const mForceMult = mouse.down ? 3 : 1;
-      const mRadiusSq = (mouse.down ? 300 : 150) ** 2;
+      // 8. Vignette gradient
+      const grad = fgCtx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height) * 0.8);
+      grad.addColorStop(0, "rgba(0,0,0,0)");
+      grad.addColorStop(1, "rgba(0,0,0,0.6)");
+      fgCtx.fillStyle = grad;
+      fgCtx.fillRect(0, 0, width, height);
+    };
 
-      // Render: Trails (fade instead of clear)
-      ctx!.fillStyle = "rgba(2, 2, 2, 0.25)";
-      ctx!.fillRect(0, 0, width, height);
-      
-      ctx!.lineWidth = 1;
-      // We will batch lines by type (attract vs repel)
-      const attractLines: number[] = [];
-      const repelLines: number[] = [];
-
-      // 2. Physics & Line Generation
-      if (!prefersReduced) {
-        for (let i = 0; i < particleCount; i++) {
-          const px = posX[i];
-          const py = posY[i];
-          const ch = charge[i];
-          let ax = 0;
-          let ay = 0;
-
-          // Mouse Force
-          const mdx = px - mouse.x;
-          const mdy = py - mouse.y;
-          const mdSq = mdx * mdx + mdy * mdy;
-          if (mdSq < mRadiusSq) {
-            const mDist = Math.sqrt(mdSq);
-            // Attract to mouse
-            const f = (10000 * mForceMult) / Math.max(mdSq, 100);
-            ax -= (mdx / mDist) * f;
-            ay -= (mdy / mDist) * f;
-          }
-
-          // Idle drift (perlin-like pseudo random)
-          ax += Math.sin(py * 0.01 + now * 0.001) * 20;
-          ay += Math.cos(px * 0.01 + now * 0.001) * 20;
-
-          // Neighbor interactions
-          let col = Math.floor(px / INTERACTION_RADIUS);
-          let row = Math.floor(py / INTERACTION_RADIUS);
-          if (col < 0) col = 0; else if (col >= cols) col = cols - 1;
-          if (row < 0) row = 0; else if (row >= rows) row = rows - 1;
-
-          for (let ro = -1; ro <= 1; ro++) {
-            for (let co = -1; co <= 1; co++) {
-              const nrow = row + ro;
-              const ncol = col + co;
-              if (nrow >= 0 && nrow < rows && ncol >= 0 && ncol < cols) {
-                const cell = ncol + nrow * cols;
-                let j = head[cell];
-                while (j !== -1) {
-                  if (i < j) { // Only calc each pair once (i < j) for lines
-                    const dx = posX[j] - px;
-                    const dy = posY[j] - py;
-                    const distSq = dx * dx + dy * dy;
-
-                    if (distSq < R_SQ) {
-                      const F = (80000 * ch * charge[j]) / Math.max(distSq, MIN_DIST_SQ);
-                      const dist = Math.sqrt(distSq);
-                      const nx = dx / dist;
-                      const ny = dy / dist;
-                      
-                      let fx = 0, fy = 0;
-                      if (isMagnetic) {
-                        // Magnetic: perpendicular force
-                        fx = -ny * F;
-                        fy = nx * F;
-                      } else {
-                        // Electrostatic: straight line force
-                        fx = -nx * F;
-                        fy = -ny * F;
-                      }
-
-                      // Apply to both
-                      ax += fx / mass[i];
-                      ay += fy / mass[i];
-                      velX[j] -= fx / mass[j];
-                      velY[j] -= fy / mass[j];
-
-                      // Add to line buffers
-                      if (ch === charge[j]) {
-                        repelLines.push(px, py, posX[j], posY[j], distSq);
-                      } else {
-                        attractLines.push(px, py, posX[j], posY[j], distSq);
-                      }
-                    }
-                  }
-                  j = next[j];
-                }
-              }
-            }
-          }
-
-          velX[i] += ax * dt;
-          velY[i] += ay * dt;
-          
-          // Damping & Speed Limit
-          velX[i] *= DAMPING;
-          velY[i] *= DAMPING;
-          
-          const speedSq = velX[i] * velX[i] + velY[i] * velY[i];
-          if (speedSq > MAX_SPEED * MAX_SPEED) {
-            const speed = Math.sqrt(speedSq);
-            velX[i] = (velX[i] / speed) * MAX_SPEED;
-            velY[i] = (velY[i] / speed) * MAX_SPEED;
-          }
-        }
-
-        // Integration & Toroidal Wrap
-        for (let i = 0; i < particleCount; i++) {
-          posX[i] += velX[i] * dt;
-          posY[i] += velY[i] * dt;
-          
-          if (posX[i] < 0) posX[i] += width;
-          else if (posX[i] > width) posX[i] -= width;
-          
-          if (posY[i] < 0) posY[i] += height;
-          else if (posY[i] > height) posY[i] -= height;
-        }
-      }
-
-      // 3. Draw Lines (Batched)
-      ctx!.globalCompositeOperation = "screen";
-      
-      const drawLineBatch = (lines: number[], strokeStyleBase: string) => {
-        if (lines.length === 0) return;
-        // Group by alpha to minimize state changes
-        for (let step = 0; step < 5; step++) {
-          const alphaThresh = 1 - (step / 5);
-          const lowerAlphaThresh = 1 - ((step + 1) / 5);
-          let hasLines = false;
-          
-          ctx!.beginPath();
-          for (let k = 0; k < lines.length; k += 5) {
-            const distSq = lines[k + 4];
-            const opacity = 1 - Math.sqrt(distSq) / INTERACTION_RADIUS;
-            if (opacity <= alphaThresh && opacity > lowerAlphaThresh) {
-              ctx!.moveTo(lines[k], lines[k + 1]);
-              ctx!.lineTo(lines[k + 2], lines[k + 3]);
-              hasLines = true;
-            }
-          }
-          if (hasLines) {
-            ctx!.strokeStyle = `rgba(${strokeStyleBase}, ${alphaThresh * 0.4})`;
-            ctx!.stroke();
-          }
-        }
-      };
-
-      // Attract lines (opposite charges) -> Soft White/Cyan
-      drawLineBatch(attractLines, "255, 255, 255");
-      // Repel lines (same charges) -> Subtle Red/Pink
-      drawLineBatch(repelLines, "239, 68, 68");
-
-      ctx!.globalCompositeOperation = "source-over";
-
-      // 4. Draw Particles (Sprites)
-      if (sprites.length > 0) {
-        for (let i = 0; i < particleCount; i++) {
-          const s = sprites[colorIdx[i]][sizeIdx[i]];
-          if (s) {
-            const r = (sizeIdx[i] === 0 ? 4 : (sizeIdx[i] === 1 ? 8 : 12));
-            ctx!.drawImage(s, posX[i] - r * 2, posY[i] - r * 2);
-          }
-        }
-      }
-    }
-    
-    raf = requestAnimationFrame(step);
+    rafId = requestAnimationFrame(step);
 
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("touchmove", handleMove);
       window.removeEventListener("mousedown", handleDown);
       window.removeEventListener("mouseup", handleUp);
       window.removeEventListener("touchstart", handleDown);
       window.removeEventListener("touchend", handleUp);
-      window.removeEventListener("click", handleClick);
-      window.removeEventListener("resize", resize);
-      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("dblclick", handleDoubleClick);
     };
   }, []);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[-10] bg-[#020202] overflow-hidden">
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block pointer-events-auto" />
+    <div ref={containerRef} className="fixed inset-0 z-[-10] bg-[#06060a] overflow-hidden">
+      <canvas ref={bgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+      <canvas ref={fgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-auto" />
       
-      {/* Control Panel (Minimal & Unobtrusive) */}
-      <div className="absolute bottom-6 right-6 z-50 glass-panel-front p-4 rounded-xl flex items-center gap-4 animate-fade-in pointer-events-auto shadow-2xl">
-        <div className="flex flex-col">
-          <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 mb-2">Force Law</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setMode("electrostatic")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                mode === "electrostatic" ? "bg-white/20 text-white" : "text-white/40 hover:bg-white/5"
-              }`}
-            >
-              Electrostatic
-            </button>
-            <button
-              onClick={() => setMode("magnetic")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                mode === "magnetic" ? "bg-white/20 text-white" : "text-white/40 hover:bg-white/5"
-              }`}
-            >
-              Magnetic
-            </button>
-          </div>
-        </div>
+      {/* Mode Toggle (Glassmorphic Pill UI) */}
+      <div className="absolute top-6 left-6 z-50 p-1.5 rounded-full glass-panel-front flex items-center shadow-xl animate-fade-in pointer-events-auto">
+        <button
+          onClick={() => setMode("calm")}
+          className={`px-4 py-1.5 text-xs font-semibold tracking-wide rounded-full transition-all duration-300 ${
+            mode === "calm" 
+              ? "bg-white/20 text-white shadow-sm" 
+              : "text-white/40 hover:text-white/80"
+          }`}
+        >
+          CALM MODE
+        </button>
+        <button
+          onClick={() => setMode("event")}
+          className={`px-4 py-1.5 text-xs font-semibold tracking-wide rounded-full transition-all duration-300 ${
+            mode === "event" 
+              ? "bg-white/20 text-white shadow-sm" 
+              : "text-white/40 hover:text-white/80"
+          }`}
+        >
+          EVENT MODE
+        </button>
       </div>
-      
-      <div className="absolute inset-0 bg-black/30 pointer-events-none" />
     </div>
   );
 }
