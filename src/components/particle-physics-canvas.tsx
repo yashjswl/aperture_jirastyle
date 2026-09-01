@@ -74,8 +74,8 @@ export function ParticlePhysicsBackground() {
         id: i,
         x: rand(0, w),
         y: rand(0, h),
-        vx: rand(-0.5, 0.5),
-        vy: rand(-0.5, 0.5),
+        vx: rand(-0.125, 0.125),
+        vy: rand(-0.125, 0.125),
         q: Math.random() > 0.5 ? 1 : -1,
         r: rand(1.4, 4),
         phase: rand(0, Math.PI * 2),
@@ -88,8 +88,8 @@ export function ParticlePhysicsBackground() {
       orbs = Array.from({ length: config.numOrbs }, () => ({
         x: rand(0, w),
         y: rand(0, h),
-        vx: rand(-0.1, 0.1),
-        vy: rand(-0.1, 0.1),
+        vx: rand(-0.025, 0.025),
+        vy: rand(-0.025, 0.025),
         r: rand(40, 120),
         hueIdx: randInt(0, HUES.length),
         opacity: rand(0.05, 0.15),
@@ -166,7 +166,7 @@ export function ParticlePhysicsBackground() {
       if (prefersReduced) return; 
 
       frame++;
-      globalHueShift += 0.05;
+      globalHueShift += 0.0125;
       const config = MODES[modeRef.current];
 
       // 1. Background Orbs (No CSS Blur!)
@@ -254,7 +254,7 @@ export function ParticlePhysicsBackground() {
 
                   if (distSq < 220 * 220) {
                     const dist = Math.sqrt(distSq);
-                    const force = (p1.q * p2.q * 150) / Math.max(distSq, 50); 
+                    const force = (p1.q * p2.q * 37.5) / Math.max(distSq, 50); 
                     
                     const px = (dx / dist) * force;
                     const py = (dy / dist) * force;
@@ -286,7 +286,7 @@ export function ParticlePhysicsBackground() {
         const mdSq = mdx * mdx + mdy * mdy;
         if (mdSq < mouseRadiusSq) {
           const mDist = Math.sqrt(mdSq) || 1;
-          const pull = (1 - mDist / mouseRadius) * 0.5;
+          const pull = (1 - mDist / mouseRadius) * 0.125;
           p1.vx -= (mdx / mDist) * pull;
           p1.vy -= (mdy / mDist) * pull;
         }
@@ -301,8 +301,8 @@ export function ParticlePhysicsBackground() {
             const lifeRatio = gw.life / gw.maxLife;
             const falloff = Math.pow(1 - gDist / 130, 2);
             
-            const pullF = 0.8 * lifeRatio * falloff;
-            const swirlF = 1.2 * lifeRatio * falloff;
+            const pullF = 0.2 * lifeRatio * falloff;
+            const swirlF = 0.3 * lifeRatio * falloff;
 
             p1.vx -= (gdx / gDist) * pullF;
             p1.vy -= (gdy / gDist) * pullF;
@@ -316,9 +316,9 @@ export function ParticlePhysicsBackground() {
         p1.vy *= 0.965;
         
         const speed = Math.hypot(p1.vx, p1.vy);
-        if (speed > 5) {
-          p1.vx = (p1.vx / speed) * 5;
-          p1.vy = (p1.vy / speed) * 5;
+        if (speed > 1.25) {
+          p1.vx = (p1.vx / speed) * 1.25;
+          p1.vy = (p1.vy / speed) * 1.25;
         }
 
         p1.x += p1.vx;
@@ -351,7 +351,7 @@ export function ParticlePhysicsBackground() {
       // 7. Render Particles (No shadowBlur!)
       for (const p of particles) {
         const h = (HUES[p.hueIdx] + globalHueShift) % 360;
-        const alpha = 0.5 + 0.5 * Math.sin(frame * 0.05 + p.phase);
+        const alpha = 0.5 + 0.5 * Math.sin(frame * 0.0125 + p.phase);
         
         // Solid core
         fgCtx.beginPath();
@@ -373,8 +373,8 @@ export function ParticlePhysicsBackground() {
         shootingStars.push({
           x: fromLeft ? 0 : width,
           y: rand(0, height * 0.6),
-          vx: fromLeft ? rand(5, 10) : rand(-10, -5),
-          vy: rand(2, 6),
+          vx: fromLeft ? rand(1.25, 2.5) : rand(-2.5, -1.25),
+          vy: rand(0.5, 1.5),
           trail: [],
           life: 300,
         });
@@ -393,8 +393,8 @@ export function ParticlePhysicsBackground() {
             const lifeRatio = gw.life / gw.maxLife;
             const falloff = 1 - gDist / 200;
             
-            const pullF = 2.0 * lifeRatio * falloff;
-            const swirlF = 3.0 * lifeRatio * falloff;
+            const pullF = 0.5 * lifeRatio * falloff;
+            const swirlF = 0.75 * lifeRatio * falloff;
 
             ss.vx -= (gdx / gDist) * pullF;
             ss.vy -= (gdy / gDist) * pullF;
@@ -404,9 +404,9 @@ export function ParticlePhysicsBackground() {
         }
 
         const speed = Math.hypot(ss.vx, ss.vy);
-        if (speed > 15) {
-          ss.vx = (ss.vx / speed) * 15;
-          ss.vy = (ss.vy / speed) * 15;
+        if (speed > 3.75) {
+          ss.vx = (ss.vx / speed) * 3.75;
+          ss.vy = (ss.vy / speed) * 3.75;
         }
 
         ss.x += ss.vx;
