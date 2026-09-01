@@ -103,17 +103,17 @@ function createGlassBaseTexture(colorHex: string) {
 // --------------------------------------------------------
 // Shared Geometries & Materials (Memory Optimization)
 // --------------------------------------------------------
-const barrelGeo = new THREE.CylinderGeometry(1, 1, 1, 64);
+const barrelGeo = new THREE.CylinderGeometry(1, 1, 1, 32);
 barrelGeo.rotateX(Math.PI / 2); // Align to Z-axis
 barrelGeo.translate(0, 0, 0.5); // Base at Z=0
 
-const circleGeo = new THREE.CircleGeometry(1, 64);
-const ringGeo = new THREE.RingGeometry(0, 1, 64); // Used for circular shutter
+const circleGeo = new THREE.CircleGeometry(1, 32);
+const ringGeo = new THREE.RingGeometry(0, 1, 32); // Used for circular shutter
 
 const bladeGeo = new THREE.PlaneGeometry(1, 1);
 bladeGeo.translate(0.5, 0, 0);
 
-const domeGeo = new THREE.SphereGeometry(1, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.15);
+const domeGeo = new THREE.SphereGeometry(1, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.15);
 domeGeo.rotateX(Math.PI / 2);
 
 // Physical Materials
@@ -219,7 +219,7 @@ function LensNode({ data, mousePos }: { data: LensData, mousePos: React.MutableR
   return (
     <group ref={groupRef} position={[data.x, data.y, 0]} onClick={handleClick}>
       {/* Outer Barrel (Rubber with grooves) */}
-      <mesh geometry={barrelGeo} material={rubberMat} scale={[data.r, data.r, data.height]} receiveShadow castShadow />
+      <mesh geometry={barrelGeo} material={rubberMat} scale={[data.r, data.r, data.height]}  />
       
       {/* Inner Metal Cylinder (Darker inner rim) */}
       <mesh geometry={barrelGeo} material={metalMat} scale={[data.r * 0.88, data.r * 0.88, data.height + 0.1]} />
@@ -283,10 +283,10 @@ function LensScene() {
     const bounds = 150; 
     
     const pool = [];
-    for (let i = 0; i < 6; i++) pool.push(22 + rand() * 8);   // Huge
-    for (let i = 0; i < 15; i++) pool.push(14 + rand() * 6);  // Large
-    for (let i = 0; i < 40; i++) pool.push(7 + rand() * 5);   // Medium
-    for (let i = 0; i < 70; i++) pool.push(3.5 + rand() * 3); // Small
+    for (let i = 0; i < 4; i++) pool.push(35 + rand() * 10);   // Huge
+    for (let i = 0; i < 10; i++) pool.push(20 + rand() * 8);  // Large
+    for (let i = 0; i < 20; i++) pool.push(10 + rand() * 6);   // Medium
+    for (let i = 0; i < 25; i++) pool.push(5 + rand() * 4); // Small
 
     pool.sort((a, b) => b - a);
 
@@ -325,13 +325,13 @@ function LensScene() {
       
       {/* 
         Problem 5 Fix: One consistent global "key light" direction (top-left).
-        This guarantees all shadows and specular reflections (soft elliptical highlights) match.
+        This guarantees all and specular reflections (soft elliptical highlights) match.
       */}
       <ambientLight intensity={0.15} />
       <directionalLight 
         position={[-40, 50, 40]} // Top-Left
         intensity={3} 
-        castShadow 
+         
         shadow-mapSize={[1024, 1024]} 
       />
       
@@ -350,7 +350,6 @@ function LensScene() {
         {/* Contact Shadows / Ambient Occlusion (Solves Problem 4) */}
         <N8AO aoRadius={4} intensity={2} halfRes />
         {/* Macro photography bokeh */}
-        <DepthOfField focusDistance={0} focalLength={0.15} bokehScale={3} height={480} />
         {/* Glow for the saturated glass core */}
         <Bloom luminanceThreshold={0.7} luminanceSmoothing={0.9} intensity={0.4} />
         <Vignette eskil={false} offset={0.1} darkness={1.2} />
@@ -373,8 +372,8 @@ export function GenerativeLensesCanvas() {
 
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: -10 }}>
-      <Canvas 
-        shadows 
+      <Canvas dpr={[1, 1.5]} 
+        
         camera={{ position: [0, 0, 80], fov: 25 }} // Telephoto/Macro FOV
         className="absolute inset-0 pointer-events-auto cursor-pointer block"
       >
