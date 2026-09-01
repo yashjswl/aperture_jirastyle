@@ -11,12 +11,10 @@ import * as THREE from "three";
 // --------------------------------------------------------
 const PALETTES = [
   "#3b82f6", // Blue
-  "#a855f7", // Purple
   "#10b981", // Green
   "#ef4444", // Red
   "#f59e0b", // Amber
   "#06b6d4", // Teal
-  "#ec4899", // Magenta
 ];
 
 function createRandom(seed: number) {
