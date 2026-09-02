@@ -213,11 +213,10 @@ export function ParticlePhysicsBackground() {
              const distSq = dx * dx + dy * dy;
              if (distSq < 180 * 180) {
                 const dist = Math.sqrt(distSq) || 1;
-                // Variable ejection force so they stop at different distances and fill the void evenly
-                const ejectForce = Math.random() * 20.0 + 5.0; 
-                const angle = Math.random() * Math.PI * 2;
-                p.vx += Math.cos(angle) * ejectForce;
-                p.vy += Math.sin(angle) * ejectForce;
+                // Gentle outward push to expand the spiral naturally so it leaves no void
+                const ejectForce = Math.random() * 4.0 + 2.0; 
+                p.vx += (dx / dist) * ejectForce;
+                p.vy += (dy / dist) * ejectForce;
              }
           }
         }
@@ -246,8 +245,9 @@ export function ParticlePhysicsBackground() {
             const falloff = Math.pow(1 - gDist / 180, 2);
             
             // It strictly PULLS and swirls
-            const pullF = 2.5 * lifeRatio * falloff;
-            const swirlF = 3.5 * lifeRatio * falloff;
+            // Much weaker pull, massively stronger swirl to create a galaxy spiral instead of a clump
+            const pullF = 0.25 * lifeRatio * falloff; 
+            const swirlF = 6.0 * lifeRatio * falloff;
 
             p.vx -= (gdx / gDist) * pullF;
             p.vy -= (gdy / gDist) * pullF;
