@@ -73,7 +73,7 @@ export function ParticlePhysicsBackground() {
         vx: rand(-0.125, 0.125),
         vy: rand(-0.125, 0.125),
         q: Math.random() > 0.5 ? 1 : -1,
-        r: Math.random() > 0.8 ? rand(1.8, 3.0) : rand(0.5, 1.5),
+        r: Math.random() > 0.9 ? rand(2.5, 4.5) : (Math.random() > 0.5 ? rand(1.2, 2.5) : rand(0.3, 1.2)),
         phase: rand(0, Math.PI * 2),
         hueIdx: randInt(0, HUES.length),
         inWell: false,
@@ -204,6 +204,23 @@ export function ParticlePhysicsBackground() {
       for (let i = gravityWells.length - 1; i >= 0; i--) {
         const gw = gravityWells[i];
         gw.life--;
+        
+        // Final frame: EJECT particles so they scatter and fill the void
+        if (gw.life === 1) {
+          for (const p of particles) {
+             const dx = p.x - gw.x;
+             const dy = p.y - gw.y;
+             const distSq = dx * dx + dy * dy;
+             if (distSq < 180 * 180) {
+                const dist = Math.sqrt(distSq) || 1;
+                // Variable ejection force so they stop at different distances and fill the void evenly
+                const ejectForce = Math.random() * 20.0 + 5.0; 
+                p.vx += (dx / dist) * ejectForce;
+                p.vy += (dy / dist) * ejectForce;
+             }
+          }
+        }
+        
         if (gw.life <= 0) {
           gravityWells.splice(i, 1);
         }
@@ -293,7 +310,7 @@ export function ParticlePhysicsBackground() {
 
                     if (distSq < 220 * 220) {
                       const dist = Math.sqrt(distSq);
-                      const force = (p1.q * p2.q * 12.0) / Math.max(distSq, 600); 
+                      const force = (p1.q * p2.q * 6.0) / Math.max(distSq, 600); 
                       
                       const px = (dx / dist) * force;
                       const py = (dy / dist) * force;
@@ -303,8 +320,8 @@ export function ParticlePhysicsBackground() {
                       p2.vx += px;
                       p2.vy += py;
 
-                      if (dist < 50) {
-                        const alpha = 1 - (dist / 50);
+                      if (dist < 35) {
+                        const alpha = 1 - (dist / 35);
                         const batchIdx = Math.min(4, Math.floor(alpha * 5));
                         const cpX = (p1.x + p2.x) / 2 + (p1.y - p2.y) * 0.15;
                         const cpY = (p1.y + p2.y) / 2 + (p2.x - p1.x) * 0.15;
