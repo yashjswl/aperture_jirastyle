@@ -387,21 +387,26 @@ export function ParticlePhysicsBackground() {
       fgCtx.globalCompositeOperation = "source-over";
 
       // 9. Shooting Stars
-      if (Math.random() < config.starSpawnRate) {
+      const spawnStar = () => {
         const fromLeft = Math.random() > 0.5;
         shootingStars.push({
-          x: fromLeft ? 0 : width,
-          y: rand(0, height * 0.6),
-          vx: fromLeft ? rand(1.25, 2.5) : rand(-2.5, -1.25),
-          vy: rand(0.5, 1.5),
+          x: fromLeft ? -50 : width + 50,
+          y: rand(-50, height * 0.6),
+          vx: fromLeft ? rand(1.5, 3.0) : rand(-3.0, -1.5),
+          vy: rand(0.5, 2.0),
           trail: [],
-          life: 300,
         });
+      };
+
+      if (shootingStars.length < 2) {
+        spawnStar();
+      } else if (shootingStars.length < 5 && Math.random() < 0.005) {
+        spawnStar();
       }
 
       for (let i = shootingStars.length - 1; i >= 0; i--) {
         const ss = shootingStars[i];
-        ss.life--;
+        
         
         for (const gw of gravityWells) {
           const gdx = ss.x - gw.x;
@@ -443,7 +448,7 @@ export function ParticlePhysicsBackground() {
           fgCtx.fill();
         }
 
-        if (ss.life <= 0 || ss.x < -100 || ss.x > width + 100 || ss.y > height + 100) {
+        if (ss.x < -100 || ss.x > width + 100 || ss.y > height + 100 || ss.y < -100) {
           shootingStars.splice(i, 1);
         }
       }
