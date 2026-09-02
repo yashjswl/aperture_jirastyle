@@ -2,9 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 
-// --- Constants & Config ---
 const BASE_BG_COLOR = "#06060a";
-const HUES = [190, 210, 230, 250, 175]; // Blueish/Teal gradient colors
+const HUES = [190, 210, 230, 250, 175];
 
 interface Config {
   numParticles: number;
@@ -13,7 +12,6 @@ interface Config {
 }
 
 const MODES = {
-  // Massive density increase
   calm: { numParticles: 600, numOrbs: 26, starSpawnRate: 0.002 },
   event: { numParticles: 1000, numOrbs: 40, starSpawnRate: 0.008 },
 };
@@ -29,7 +27,6 @@ function randInt(min: number, max: number) {
 export function ParticlePhysicsBackground() {
   const fgCanvasRef = useRef<HTMLCanvasElement>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const [mode, setMode] = useState<"calm" | "event">("calm");
   const modeRef = useRef(mode);
@@ -39,7 +36,7 @@ export function ParticlePhysicsBackground() {
   }, [mode]);
 
   useEffect(() => {
-    if (!fgCanvasRef.current || !bgCanvasRef.current || !containerRef.current) return;
+    if (!fgCanvasRef.current || !bgCanvasRef.current) return;
     const fgCanvas = fgCanvasRef.current;
     const bgCanvas = bgCanvasRef.current;
     const fgCtx = fgCanvas.getContext("2d", { alpha: false });
@@ -50,14 +47,12 @@ export function ParticlePhysicsBackground() {
     let height = 0;
     let activeMode = modeRef.current;
     
-    // Spatial Hash Config
     const CELL_SIZE = 220;
     let cols = 0;
     let rows = 0;
     let head = new Int32Array(0);
     let next = new Int32Array(0);
 
-    // --- State ---
     let particles: any[] = [];
     let orbs: any[] = [];
     let gravityWells: any[] = [];
@@ -68,7 +63,6 @@ export function ParticlePhysicsBackground() {
 
     const mouse = { x: -1000, y: -1000, down: false };
 
-    // --- Initialization ---
     const initEntities = (w: number, h: number) => {
       const config = MODES[activeMode];
       
@@ -121,7 +115,6 @@ export function ParticlePhysicsBackground() {
     window.addEventListener("resize", resize);
     resize();
 
-    // --- Event Listeners ---
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if ('touches' in e) {
         mouse.x = e.touches[0].clientX;
@@ -143,12 +136,13 @@ export function ParticlePhysicsBackground() {
         const dx = p.x - mx;
         const dy = p.y - my;
         const distSq = dx * dx + dy * dy;
-        // Increase well influence radius to 300px
-        if (distSq < 300 * 300) {
+        // Reduced well radius to 180 so it fills up smoothly
+        if (distSq < 180 * 180) {
           const dist = Math.sqrt(distSq) || 1;
-          const force = 100 / dist;
-          p.vx += (dx / dist) * force;
-          p.vy += (dy / dist) * force;
+          const force = 30 / dist;
+          // Initial burst PULLS them slightly
+          p.vx -= (dx / dist) * force;
+          p.vy -= (dy / dist) * force;
         }
       }
     };
@@ -163,7 +157,6 @@ export function ParticlePhysicsBackground() {
 
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // --- Main Loop ---
     const step = () => {
       rafId = requestAnimationFrame(step);
       if (prefersReduced) return; 
@@ -193,7 +186,6 @@ export function ParticlePhysicsBackground() {
         const h = (HUES[orb.hueIdx] + globalHueShift) % 360;
         
         const grad = bgCtx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.r);
-        // Brighter background orbs too
         grad.addColorStop(0, `hsla(${h}, 100%, 65%, ${orb.opacity})`);
         grad.addColorStop(1, `hsla(${h}, 100%, 65%, 0)`);
         
@@ -217,7 +209,6 @@ export function ParticlePhysicsBackground() {
         }
       }
 
-      // Vastly reduced mouse effect
       const mouseRadius = mouse.down ? 120 : 70;
       const mouseRadiusSq = mouseRadius * mouseRadius;
 
@@ -226,21 +217,19 @@ export function ParticlePhysicsBackground() {
         const p = particles[i];
         p.inWell = false;
 
-        // Gravity Wells
         for (const gw of gravityWells) {
           const gdx = p.x - gw.x;
           const gdy = p.y - gw.y;
           const gdSq = gdx * gdx + gdy * gdy;
-          // Massive 300px black hole reach
-          if (gdSq < 300 * 300) {
+          if (gdSq < 180 * 180) { // Reduced radius so the void isn't huge
             p.inWell = true;
             const gDist = Math.sqrt(gdSq) || 1;
             const lifeRatio = gw.life / gw.maxLife;
-            const falloff = Math.pow(1 - gDist / 300, 2);
+            const falloff = Math.pow(1 - gDist / 180, 2);
             
-            // Colossal physics forces to suck them in and swirl them smoothly
-            const pullF = 4.5 * lifeRatio * falloff;
-            const swirlF = 6.5 * lifeRatio * falloff;
+            // It strictly PULLS and swirls
+            const pullF = 2.5 * lifeRatio * falloff;
+            const swirlF = 3.5 * lifeRatio * falloff;
 
             p.vx -= (gdx / gDist) * pullF;
             p.vy -= (gdy / gDist) * pullF;
@@ -249,13 +238,13 @@ export function ParticlePhysicsBackground() {
           }
         }
 
-        // Mouse Repel (Push away) - Drastically reduced
+        // Mouse Repel (Push away gently)
         const mdx = p.x - mouse.x;
         const mdy = p.y - mouse.y;
         const mdSq = mdx * mdx + mdy * mdy;
         if (mdSq < mouseRadiusSq) {
           const mDist = Math.sqrt(mdSq) || 1;
-          const push = (1 - mDist / mouseRadius) * 0.015; // Barely touches them
+          const push = (1 - mDist / mouseRadius) * 0.015; 
           p.vx += (mdx / mDist) * push;
           p.vy += (mdy / mDist) * push;
         }
@@ -276,7 +265,7 @@ export function ParticlePhysicsBackground() {
 
       const lineBatches: number[][] = [[], [], [], [], []];
 
-      // 6. Physics: Particle-Particle (Spatial Hash)
+      // 6. Physics: Particle-Particle
       for (let i = 0; i < particles.length; i++) {
         const p1 = particles[i];
         
@@ -334,10 +323,10 @@ export function ParticlePhysicsBackground() {
         p1.vy *= 0.985;
         
         const speed = Math.hypot(p1.vx, p1.vy);
-        const dynamicMaxSpeed = 1.25 + (Math.abs(p1.vx) + Math.abs(p1.vy)) * 0.25;
         
-        // Massive speed cap allowed inside gravity wells so they don't stutter
-        const limit = p1.inWell ? 18.0 : Math.min(dynamicMaxSpeed, 4.0);
+        // Let them scatter by capping at a generous 8.0 outside of wells, 
+        // allowing their momentum to gently damp down naturally without instantly halting.
+        const limit = p1.inWell ? 18.0 : 8.0;
         
         if (speed > limit) {
           p1.vx = (p1.vx / speed) * limit;
@@ -369,19 +358,19 @@ export function ParticlePhysicsBackground() {
         fgCtx.stroke();
       }
 
-      // 8. Render Particles (Much brighter and fully saturated)
+      // 8. Render Particles 
       for (const p of particles) {
         const h = (HUES[p.hueIdx] + globalHueShift) % 360;
-        const alpha = 0.85 + 0.15 * Math.sin(frame * 0.0125 + p.phase); // Higher base alpha
+        const alpha = 0.85 + 0.15 * Math.sin(frame * 0.0125 + p.phase); 
         
         fgCtx.beginPath();
         fgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        fgCtx.fillStyle = `hsla(${h}, 100%, 65%, ${alpha})`; // 100% saturation, brighter lightness
+        fgCtx.fillStyle = `hsla(${h}, 100%, 65%, ${alpha})`; 
         fgCtx.fill();
         
         fgCtx.beginPath();
         fgCtx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
-        fgCtx.fillStyle = `hsla(${h}, 100%, 65%, ${alpha * 0.4})`; // Brighter soft glow
+        fgCtx.fillStyle = `hsla(${h}, 100%, 65%, ${alpha * 0.4})`; 
         fgCtx.fill();
       }
       fgCtx.globalCompositeOperation = "source-over";
@@ -400,22 +389,21 @@ export function ParticlePhysicsBackground() {
 
       if (shootingStars.length < 2) {
         spawnStar();
-      } else if (shootingStars.length < 5 && Math.random() < 0.005) {
+      } else if (shootingStars.length < 5 && Math.random() < config.starSpawnRate) {
         spawnStar();
       }
 
       for (let i = shootingStars.length - 1; i >= 0; i--) {
         const ss = shootingStars[i];
         
-        
         for (const gw of gravityWells) {
           const gdx = ss.x - gw.x;
           const gdy = ss.y - gw.y;
           const gdSq = gdx * gdx + gdy * gdy;
-          if (gdSq < 300 * 300) {
+          if (gdSq < 180 * 180) {
             const gDist = Math.sqrt(gdSq) || 1;
             const lifeRatio = gw.life / gw.maxLife;
-            const falloff = Math.pow(1 - gDist / 300, 2);
+            const falloff = Math.pow(1 - gDist / 180, 2);
             
             const pullF = 2.0 * lifeRatio * falloff;
             const swirlF = 3.5 * lifeRatio * falloff;
@@ -453,10 +441,10 @@ export function ParticlePhysicsBackground() {
         }
       }
 
-      // 10. Render Gravity Wells (Massive rings)
+      // 10. Render Gravity Wells
       for (const gw of gravityWells) {
         const lifeRatio = gw.life / gw.maxLife;
-        const r = 300 * (1 - Math.pow(lifeRatio, 3)); 
+        const r = 180 * (1 - Math.pow(lifeRatio, 3)); 
         fgCtx.beginPath();
         fgCtx.arc(gw.x, gw.y, r, 0, Math.PI * 2);
         fgCtx.strokeStyle = `rgba(255, 255, 255, ${lifeRatio * 0.4})`;
@@ -488,11 +476,13 @@ export function ParticlePhysicsBackground() {
   }, []);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[-10] bg-[#06060a] overflow-hidden">
-      <canvas ref={bgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-      <canvas ref={fgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-auto" />
+    <>
+      <div className="fixed inset-0 z-[-10] bg-[#06060a] overflow-hidden pointer-events-none">
+        <canvas ref={bgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+        <canvas ref={fgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+      </div>
       
-      <div className="absolute bottom-6 right-6 z-50 p-1.5 rounded-full glass-panel-front flex items-center shadow-xl animate-fade-in pointer-events-auto">
+      <div className="fixed bottom-6 right-6 z-50 p-1.5 rounded-full glass-panel-front flex items-center shadow-xl animate-fade-in pointer-events-auto">
         <button
           onClick={() => setMode("calm")}
           className={`px-4 py-1.5 text-xs font-semibold tracking-wide rounded-full transition-all duration-300 ${
@@ -514,6 +504,6 @@ export function ParticlePhysicsBackground() {
           EVENT MODE
         </button>
       </div>
-    </div>
+    </>
   );
 }
