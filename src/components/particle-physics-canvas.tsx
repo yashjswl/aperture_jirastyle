@@ -143,7 +143,7 @@ export function ParticlePhysicsBackground() {
         const distSq = dx * dx + dy * dy;
         if (distSq < 130 * 130) {
           const dist = Math.sqrt(distSq) || 1;
-          const force = 150 / dist;
+          const force = 60 / dist;
           p.vx += (dx / dist) * force;
           p.vy += (dy / dist) * force;
         }
@@ -254,7 +254,7 @@ export function ParticlePhysicsBackground() {
 
                   if (distSq < 220 * 220) {
                     const dist = Math.sqrt(distSq);
-                    const force = (p1.q * p2.q * 37.5) / Math.max(distSq, 600); 
+                    const force = (p1.q * p2.q * 12.0) / Math.max(distSq, 600); 
                     
                     const px = (dx / dist) * force;
                     const py = (dy / dist) * force;
@@ -318,7 +318,7 @@ export function ParticlePhysicsBackground() {
         const speed = Math.hypot(p1.vx, p1.vy);
         // Dynamically allow higher speed if they are swirling fast
         const dynamicMaxSpeed = 1.25 + (Math.abs(p1.vx) + Math.abs(p1.vy)) * 0.15;
-        const limit = Math.min(dynamicMaxSpeed, 6.0); // Cap the slingshot at 6.0
+        const limit = Math.min(dynamicMaxSpeed, 3.5); // Cap the slingshot at 6.0
         if (speed > limit) {
           p1.vx = (p1.vx / speed) * limit;
           p1.vy = (p1.vy / speed) * limit;
@@ -471,7 +471,7 @@ export function ParticlePhysicsBackground() {
       <canvas ref={bgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
       <canvas ref={fgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-auto" />
       
-      <div className="absolute top-6 left-6 z-50 p-1.5 rounded-full glass-panel-front flex items-center shadow-xl animate-fade-in pointer-events-auto">
+      <div className="absolute bottom-6 right-6 z-50 p-1.5 rounded-full glass-panel-front flex items-center shadow-xl animate-fade-in pointer-events-auto">
         <button
           onClick={() => setMode("calm")}
           className={`px-4 py-1.5 text-xs font-semibold tracking-wide rounded-full transition-all duration-300 ${
