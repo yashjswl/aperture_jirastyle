@@ -82,7 +82,7 @@ export function Sidebar({ user }: { user: NavUser }) {
       {/* Bottom area */}
       <div className="p-6 border-t border-white/10 bg-transparent">
         <div className="text-[10px] text-white/30 text-center uppercase font-medium tracking-[0.3em]">
-          Zero Gravity OS
+          Aperture Portal
         </div>
       </div>
     </aside>

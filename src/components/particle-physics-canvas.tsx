@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 // --- Constants & Config ---
 const BASE_BG_COLOR = "#06060a";
-const HUES = [255, 165, 15, 335, 205]; 
+const HUES = [190, 210, 230, 250, 175]; // Blueish/Teal gradient colors
 
 interface Config {
   numParticles: number;
@@ -13,8 +13,8 @@ interface Config {
 }
 
 const MODES = {
-  calm: { numParticles: 220, numOrbs: 26, starSpawnRate: 0.025 },
-  event: { numParticles: 380, numOrbs: 40, starSpawnRate: 0.08 },
+  calm: { numParticles: 350, numOrbs: 26, starSpawnRate: 0.002 },
+  event: { numParticles: 550, numOrbs: 40, starSpawnRate: 0.008 },
 };
 
 function rand(min: number, max: number) {
@@ -47,6 +47,7 @@ export function ParticlePhysicsBackground() {
 
     let width = 0;
     let height = 0;
+    let activeMode = modeRef.current;
     
     // Spatial Hash Config
     const CELL_SIZE = 220;
@@ -68,7 +69,7 @@ export function ParticlePhysicsBackground() {
 
     // --- Initialization ---
     const initEntities = (w: number, h: number) => {
-      const config = MODES[modeRef.current];
+      const config = MODES[activeMode];
       
       particles = Array.from({ length: config.numParticles }, (_, i) => ({
         id: i,
@@ -80,9 +81,9 @@ export function ParticlePhysicsBackground() {
         r: Math.random() > 0.8 ? rand(1.8, 3.0) : rand(0.5, 1.5),
         phase: rand(0, Math.PI * 2),
         hueIdx: randInt(0, HUES.length),
+        inWell: false,
       }));
 
-      // Reallocate spatial hash arrays
       next = new Int32Array(config.numParticles);
 
       orbs = Array.from({ length: config.numOrbs }, () => ({
@@ -165,11 +166,17 @@ export function ParticlePhysicsBackground() {
       rafId = requestAnimationFrame(step);
       if (prefersReduced) return; 
 
+      // Check if mode changed
+      if (activeMode !== modeRef.current) {
+        activeMode = modeRef.current;
+        resize(); // Resizes and completely re-initializes arrays
+      }
+
       frame++;
       globalHueShift += 0.0125;
-      const config = MODES[modeRef.current];
+      const config = MODES[activeMode];
 
-      // 1. Background Orbs (No CSS Blur!)
+      // 1. Background Orbs
       bgCtx.fillStyle = BASE_BG_COLOR;
       bgCtx.fillRect(0, 0, width, height);
       
@@ -184,7 +191,6 @@ export function ParticlePhysicsBackground() {
 
         const h = (HUES[orb.hueIdx] + globalHueShift) % 360;
         
-        // Massive performance boost: use radial gradient instead of ctx.filter = 'blur()'
         const grad = bgCtx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.r);
         grad.addColorStop(0, `hsla(${h}, 70%, 60%, ${orb.opacity})`);
         grad.addColorStop(1, `hsla(${h}, 70%, 60%, 0)`);
@@ -209,7 +215,49 @@ export function ParticlePhysicsBackground() {
         }
       }
 
-      // 4. Build Spatial Hash for O(n) collision
+      // Mouse setup
+      const mouseRadius = mouse.down ? 220 : 130;
+      const mouseRadiusSq = mouseRadius * mouseRadius;
+
+      // 4. Pre-process gravity wells and mouse repel per particle
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.inWell = false;
+
+        // Gravity Wells
+        for (const gw of gravityWells) {
+          const gdx = p.x - gw.x;
+          const gdy = p.y - gw.y;
+          const gdSq = gdx * gdx + gdy * gdy;
+          if (gdSq < 130 * 130) {
+            p.inWell = true;
+            const gDist = Math.sqrt(gdSq) || 1;
+            const lifeRatio = gw.life / gw.maxLife;
+            const falloff = Math.pow(1 - gDist / 130, 2);
+            
+            const pullF = 0.6 * lifeRatio * falloff;
+            const swirlF = 1.5 * lifeRatio * falloff;
+
+            p.vx -= (gdx / gDist) * pullF;
+            p.vy -= (gdy / gDist) * pullF;
+            p.vx -= (gdy / gDist) * swirlF;
+            p.vy += (gdx / gDist) * swirlF;
+          }
+        }
+
+        // Mouse Repel (Push away)
+        const mdx = p.x - mouse.x;
+        const mdy = p.y - mouse.y;
+        const mdSq = mdx * mdx + mdy * mdy;
+        if (mdSq < mouseRadiusSq) {
+          const mDist = Math.sqrt(mdSq) || 1;
+          const push = (1 - mDist / mouseRadius) * 0.125;
+          p.vx += (mdx / mDist) * push;
+          p.vy += (mdy / mDist) * push;
+        }
+      }
+
+      // 5. Build Spatial Hash
       head.fill(-1);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
@@ -222,13 +270,9 @@ export function ParticlePhysicsBackground() {
         head[cell] = i;
       }
 
-      const mouseRadius = mouse.down ? 220 : 130;
-      const mouseRadiusSq = mouseRadius * mouseRadius;
-
-      // Batches for drawing lines to minimize ctx.stroke() calls (massive FPS boost)
       const lineBatches: number[][] = [[], [], [], [], []];
 
-      // 5. Physics: Particle-Particle (Spatial Hash)
+      // 6. Physics: Particle-Particle (Spatial Hash)
       for (let i = 0; i < particles.length; i++) {
         const p1 = particles[i];
         
@@ -248,29 +292,34 @@ export function ParticlePhysicsBackground() {
               while (j !== -1) {
                 if (i < j) {
                   const p2 = particles[j];
-                  const dx = p2.x - p1.x;
-                  const dy = p2.y - p1.y;
-                  const distSq = dx * dx + dy * dy;
+                  
+                  // If either is inside a gravity well, completely break their connections so they scatter freely
+                  if (!p1.inWell && !p2.inWell) {
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const distSq = dx * dx + dy * dy;
 
-                  if (distSq < 220 * 220) {
-                    const dist = Math.sqrt(distSq);
-                    const force = (p1.q * p2.q * 12.0) / Math.max(distSq, 600); 
-                    
-                    const px = (dx / dist) * force;
-                    const py = (dy / dist) * force;
-                    
-                    p1.vx -= px;
-                    p1.vy -= py;
-                    p2.vx += px;
-                    p2.vy += py;
+                    if (distSq < 220 * 220) {
+                      const dist = Math.sqrt(distSq);
+                      // Extremely gentle repulsion/attraction (ambient roaming)
+                      const force = (p1.q * p2.q * 12.0) / Math.max(distSq, 600); 
+                      
+                      const px = (dx / dist) * force;
+                      const py = (dy / dist) * force;
+                      
+                      p1.vx -= px;
+                      p1.vy -= py;
+                      p2.vx += px;
+                      p2.vy += py;
 
-                    // Render curved connections
-                    if (dist < 95) {
-                      const alpha = 1 - (dist / 95);
-                      const batchIdx = Math.min(4, Math.floor(alpha * 5));
-                      const cpX = (p1.x + p2.x) / 2 + (p1.y - p2.y) * 0.15;
-                      const cpY = (p1.y + p2.y) / 2 + (p2.x - p1.x) * 0.15;
-                      lineBatches[batchIdx].push(p1.x, p1.y, cpX, cpY, p2.x, p2.y);
+                      // Connection lines only draw if they get VERY close (threshold linking)
+                      if (dist < 50) {
+                        const alpha = 1 - (dist / 50);
+                        const batchIdx = Math.min(4, Math.floor(alpha * 5));
+                        const cpX = (p1.x + p2.x) / 2 + (p1.y - p2.y) * 0.15;
+                        const cpY = (p1.y + p2.y) / 2 + (p2.x - p1.x) * 0.15;
+                        lineBatches[batchIdx].push(p1.x, p1.y, cpX, cpY, p2.x, p2.y);
+                      }
                     }
                   }
                 }
@@ -280,45 +329,13 @@ export function ParticlePhysicsBackground() {
           }
         }
 
-        // Mouse attraction
-        const mdx = p1.x - mouse.x;
-        const mdy = p1.y - mouse.y;
-        const mdSq = mdx * mdx + mdy * mdy;
-        if (mdSq < mouseRadiusSq) {
-          const mDist = Math.sqrt(mdSq) || 1;
-          const pull = (1 - mDist / mouseRadius) * 0.125;
-          p1.vx -= (mdx / mDist) * pull;
-          p1.vy -= (mdy / mDist) * pull;
-        }
-
-        // Gravity Wells
-        for (const gw of gravityWells) {
-          const gdx = p1.x - gw.x;
-          const gdy = p1.y - gw.y;
-          const gdSq = gdx * gdx + gdy * gdy;
-          if (gdSq < 130 * 130) {
-            const gDist = Math.sqrt(gdSq) || 1;
-            const lifeRatio = gw.life / gw.maxLife;
-            const falloff = Math.pow(1 - gDist / 130, 2);
-            
-            const pullF = 0.6 * lifeRatio * falloff;
-            const swirlF = 1.5 * lifeRatio * falloff;
-
-            p1.vx -= (gdx / gDist) * pullF;
-            p1.vy -= (gdy / gDist) * pullF;
-            p1.vx -= (gdy / gDist) * swirlF;
-            p1.vy += (gdx / gDist) * swirlF;
-          }
-        }
-
-        // Damping, Clamping & Update
         p1.vx *= 0.985;
         p1.vy *= 0.985;
         
         const speed = Math.hypot(p1.vx, p1.vy);
-        // Dynamically allow higher speed if they are swirling fast
         const dynamicMaxSpeed = 1.25 + (Math.abs(p1.vx) + Math.abs(p1.vy)) * 0.15;
-        const limit = Math.min(dynamicMaxSpeed, 3.5); // Cap the slingshot at 6.0
+        const limit = Math.min(dynamicMaxSpeed, 3.5);
+        
         if (speed > limit) {
           p1.vx = (p1.vx / speed) * limit;
           p1.vy = (p1.vy / speed) * limit;
@@ -327,14 +344,13 @@ export function ParticlePhysicsBackground() {
         p1.x += p1.vx;
         p1.y += p1.vy;
 
-        // Wrap around edges
         if (p1.x < 0) p1.x += width;
         if (p1.x > width) p1.x -= width;
         if (p1.y < 0) p1.y += height;
         if (p1.y > height) p1.y -= height;
       }
 
-      // 6. Draw connection lines in batches (Massive FPS fix)
+      // 7. Draw connection lines
       fgCtx.globalCompositeOperation = "screen";
       for (let i = 0; i < 5; i++) {
         const batch = lineBatches[i];
@@ -345,24 +361,21 @@ export function ParticlePhysicsBackground() {
           fgCtx.moveTo(batch[k], batch[k+1]);
           fgCtx.quadraticCurveTo(batch[k+2], batch[k+3], batch[k+4], batch[k+5]);
         }
-        // Alpha ranges from 0.1 to 0.3 depending on batch
         fgCtx.strokeStyle = `rgba(255, 255, 255, ${(i + 1) * 0.06})`;
         fgCtx.lineWidth = 1;
         fgCtx.stroke();
       }
 
-      // 7. Render Particles (No shadowBlur!)
+      // 8. Render Particles
       for (const p of particles) {
         const h = (HUES[p.hueIdx] + globalHueShift) % 360;
         const alpha = 0.75 + 0.25 * Math.sin(frame * 0.0125 + p.phase);
         
-        // Solid core
         fgCtx.beginPath();
         fgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         fgCtx.fillStyle = `hsla(${h}, 80%, 70%, ${alpha})`;
         fgCtx.fill();
         
-        // Fake soft glow (orders of magnitude faster than shadowBlur)
         fgCtx.beginPath();
         fgCtx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
         fgCtx.fillStyle = `hsla(${h}, 80%, 70%, ${alpha * 0.3})`;
@@ -370,7 +383,7 @@ export function ParticlePhysicsBackground() {
       }
       fgCtx.globalCompositeOperation = "source-over";
 
-      // 8. Shooting Stars
+      // 9. Shooting Stars
       if (Math.random() < config.starSpawnRate) {
         const fromLeft = Math.random() > 0.5;
         shootingStars.push({
@@ -396,8 +409,8 @@ export function ParticlePhysicsBackground() {
             const lifeRatio = gw.life / gw.maxLife;
             const falloff = 1 - gDist / 200;
             
-            const pullF = 1.2 * lifeRatio * falloff;
-            const swirlF = 2.5 * lifeRatio * falloff;
+            const pullF = 0.5 * lifeRatio * falloff;
+            const swirlF = 0.75 * lifeRatio * falloff;
 
             ss.vx -= (gdx / gDist) * pullF;
             ss.vy -= (gdy / gDist) * pullF;
@@ -416,11 +429,12 @@ export function ParticlePhysicsBackground() {
         ss.y += ss.vy;
         
         ss.trail.unshift({ x: ss.x, y: ss.y });
-        if (ss.trail.length > 14) ss.trail.pop();
+        // Longer trail: up to 40 dots
+        if (ss.trail.length > 40) ss.trail.pop();
 
         for (let j = 0; j < ss.trail.length; j++) {
           const tp = ss.trail[j];
-          const opacity = 1 - j / 14;
+          const opacity = 1 - j / 40; // Fades across 40 segments
           fgCtx.beginPath();
           fgCtx.arc(tp.x, tp.y, 1.5, 0, Math.PI * 2);
           fgCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
@@ -432,7 +446,7 @@ export function ParticlePhysicsBackground() {
         }
       }
 
-      // 9. Render Gravity Wells
+      // 10. Render Gravity Wells
       for (const gw of gravityWells) {
         const lifeRatio = gw.life / gw.maxLife;
         const r = 130 * (1 - Math.pow(lifeRatio, 3)); 
@@ -443,7 +457,7 @@ export function ParticlePhysicsBackground() {
         fgCtx.stroke();
       }
 
-      // 10. Vignette
+      // 11. Vignette
       const grad = fgCtx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height) * 0.8);
       grad.addColorStop(0, "rgba(0,0,0,0)");
       grad.addColorStop(1, "rgba(0,0,0,0.6)");
