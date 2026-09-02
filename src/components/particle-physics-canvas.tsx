@@ -13,8 +13,8 @@ interface Config {
 }
 
 const MODES = {
-  calm: { numParticles: 130, numOrbs: 26, starSpawnRate: 0.005 },
-  event: { numParticles: 190, numOrbs: 40, starSpawnRate: 0.015 },
+  calm: { numParticles: 220, numOrbs: 26, starSpawnRate: 0.025 },
+  event: { numParticles: 380, numOrbs: 40, starSpawnRate: 0.08 },
 };
 
 function rand(min: number, max: number) {
@@ -77,7 +77,7 @@ export function ParticlePhysicsBackground() {
         vx: rand(-0.125, 0.125),
         vy: rand(-0.125, 0.125),
         q: Math.random() > 0.5 ? 1 : -1,
-        r: rand(1.4, 4),
+        r: Math.random() > 0.8 ? rand(1.8, 3.0) : rand(0.5, 1.5),
         phase: rand(0, Math.PI * 2),
         hueIdx: randInt(0, HUES.length),
       }));
@@ -254,7 +254,7 @@ export function ParticlePhysicsBackground() {
 
                   if (distSq < 220 * 220) {
                     const dist = Math.sqrt(distSq);
-                    const force = (p1.q * p2.q * 37.5) / Math.max(distSq, 50); 
+                    const force = (p1.q * p2.q * 37.5) / Math.max(distSq, 600); 
                     
                     const px = (dx / dist) * force;
                     const py = (dy / dist) * force;
@@ -301,8 +301,8 @@ export function ParticlePhysicsBackground() {
             const lifeRatio = gw.life / gw.maxLife;
             const falloff = Math.pow(1 - gDist / 130, 2);
             
-            const pullF = 0.2 * lifeRatio * falloff;
-            const swirlF = 0.3 * lifeRatio * falloff;
+            const pullF = 0.6 * lifeRatio * falloff;
+            const swirlF = 1.5 * lifeRatio * falloff;
 
             p1.vx -= (gdx / gDist) * pullF;
             p1.vy -= (gdy / gDist) * pullF;
@@ -312,13 +312,16 @@ export function ParticlePhysicsBackground() {
         }
 
         // Damping, Clamping & Update
-        p1.vx *= 0.965;
-        p1.vy *= 0.965;
+        p1.vx *= 0.985;
+        p1.vy *= 0.985;
         
         const speed = Math.hypot(p1.vx, p1.vy);
-        if (speed > 1.25) {
-          p1.vx = (p1.vx / speed) * 1.25;
-          p1.vy = (p1.vy / speed) * 1.25;
+        // Dynamically allow higher speed if they are swirling fast
+        const dynamicMaxSpeed = 1.25 + (Math.abs(p1.vx) + Math.abs(p1.vy)) * 0.15;
+        const limit = Math.min(dynamicMaxSpeed, 6.0); // Cap the slingshot at 6.0
+        if (speed > limit) {
+          p1.vx = (p1.vx / speed) * limit;
+          p1.vy = (p1.vy / speed) * limit;
         }
 
         p1.x += p1.vx;
@@ -351,7 +354,7 @@ export function ParticlePhysicsBackground() {
       // 7. Render Particles (No shadowBlur!)
       for (const p of particles) {
         const h = (HUES[p.hueIdx] + globalHueShift) % 360;
-        const alpha = 0.5 + 0.5 * Math.sin(frame * 0.0125 + p.phase);
+        const alpha = 0.75 + 0.25 * Math.sin(frame * 0.0125 + p.phase);
         
         // Solid core
         fgCtx.beginPath();
@@ -393,8 +396,8 @@ export function ParticlePhysicsBackground() {
             const lifeRatio = gw.life / gw.maxLife;
             const falloff = 1 - gDist / 200;
             
-            const pullF = 0.5 * lifeRatio * falloff;
-            const swirlF = 0.75 * lifeRatio * falloff;
+            const pullF = 1.2 * lifeRatio * falloff;
+            const swirlF = 2.5 * lifeRatio * falloff;
 
             ss.vx -= (gdx / gDist) * pullF;
             ss.vy -= (gdy / gDist) * pullF;
