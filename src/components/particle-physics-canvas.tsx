@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const BASE_BG_COLOR = "#06060a";
-const HUES = [190, 210, 230, 250, 175];
+const HUES = [0, 60, 120, 220, 300]; // Red, Yellow, Green, Blue, Magenta
 
 interface Config {
   numParticles: number;
@@ -70,10 +70,10 @@ export function ParticlePhysicsBackground() {
         id: i,
         x: rand(0, w),
         y: rand(0, h),
-        vx: rand(-0.125, 0.125),
-        vy: rand(-0.125, 0.125),
+        vx: rand(-0.25, 0.25),
+        vy: rand(-0.25, 0.25),
         q: Math.random() > 0.5 ? 1 : -1,
-        r: Math.random() > 0.9 ? rand(2.5, 4.5) : (Math.random() > 0.5 ? rand(1.2, 2.5) : rand(0.3, 1.2)),
+        r: Math.random() > 0.9 ? rand(2.0, 3.2) : (Math.random() > 0.5 ? rand(1.2, 2.5) : rand(0.3, 1.2)),
         phase: rand(0, Math.PI * 2),
         hueIdx: randInt(0, HUES.length),
         inWell: false,
@@ -215,8 +215,9 @@ export function ParticlePhysicsBackground() {
                 const dist = Math.sqrt(distSq) || 1;
                 // Variable ejection force so they stop at different distances and fill the void evenly
                 const ejectForce = Math.random() * 20.0 + 5.0; 
-                p.vx += (dx / dist) * ejectForce;
-                p.vy += (dy / dist) * ejectForce;
+                const angle = Math.random() * Math.PI * 2;
+                p.vx += Math.cos(angle) * ejectForce;
+                p.vy += Math.sin(angle) * ejectForce;
              }
           }
         }
