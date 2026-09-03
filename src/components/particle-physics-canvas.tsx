@@ -178,7 +178,7 @@ export function ParticlePhysicsBackground() {
       const now = performance.now();
       for (let i = voidsToRefill.length - 1; i >= 0; i--) {
         const v = voidsToRefill[i];
-        if (now - v.createdAt >= 1500) {
+        if (now - v.createdAt >= 3500) {
           const radius = 200;
           let localCount = 0;
           for (const p of particles) {
