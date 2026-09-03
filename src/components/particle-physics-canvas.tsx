@@ -213,10 +213,10 @@ export function ParticlePhysicsBackground() {
              const distSq = dx * dx + dy * dy;
              if (distSq < 180 * 180) {
                 const dist = Math.sqrt(distSq) || 1;
-                // Gentle outward push to expand the spiral naturally so it leaves no void
-                const ejectForce = Math.random() * 4.0 + 2.0; 
-                p.vx += (dx / dist) * ejectForce;
-                p.vy += (dy / dist) * ejectForce;
+                // Strong INWARD pull to make them collapse into the center right as the well dies
+                const implosionForce = Math.random() * 6.0 + 4.0; 
+                p.vx -= (dx / dist) * implosionForce;
+                p.vy -= (dy / dist) * implosionForce;
              }
           }
         }
