@@ -260,7 +260,7 @@ export function ParticlePhysicsBackground() {
              if (distSq < 180 * 180) {
                 const dist = Math.sqrt(distSq) || 1;
                 // Strong INWARD pull to make them collapse into the center right as the well dies
-                const implosionForce = Math.random() * 1.5 + 1.0; 
+                const implosionForce = Math.random() * 2.0 + 1.5; 
                 p.vx -= (dx / dist) * implosionForce;
                 p.vy -= (dy / dist) * implosionForce;
              }
