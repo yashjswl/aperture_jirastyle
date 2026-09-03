@@ -56,6 +56,7 @@ export function ParticlePhysicsBackground() {
     let particles: any[] = [];
     let orbs: any[] = [];
     let gravityWells: any[] = [];
+    let voidsToRefill: any[] = [];
     let shootingStars: any[] = [];
     let globalHueShift = 0;
     let frame = 0;
@@ -76,6 +77,7 @@ export function ParticlePhysicsBackground() {
         r: Math.random() > 0.9 ? rand(2.0, 3.2) : (Math.random() > 0.5 ? rand(1.2, 2.5) : rand(0.3, 1.2)),
         phase: rand(0, Math.PI * 2),
         hueIdx: randInt(0, HUES.length),
+        fadeStartTime: 0,
         inWell: false,
       }));
 
@@ -88,6 +90,7 @@ export function ParticlePhysicsBackground() {
         vy: rand(-0.025, 0.025),
         r: rand(40, 120),
         hueIdx: randInt(0, HUES.length),
+        fadeStartTime: 0,
         opacity: rand(0.05, 0.15),
       }));
     };
@@ -131,6 +134,7 @@ export function ParticlePhysicsBackground() {
       const mx = e.clientX;
       const my = e.clientY;
       gravityWells.push({ x: mx, y: my, life: 220, maxLife: 220 });
+      voidsToRefill.push({ x: mx, y: my, createdAt: performance.now() });
       
       for (const p of particles) {
         const dx = p.x - mx;
@@ -169,6 +173,48 @@ export function ParticlePhysicsBackground() {
       frame++;
       globalHueShift += 0.0125;
       const config = MODES[activeMode];
+
+            // Process Void Refills (1.5 seconds after spawn)
+      const now = performance.now();
+      for (let i = voidsToRefill.length - 1; i >= 0; i--) {
+        const v = voidsToRefill[i];
+        if (now - v.createdAt >= 1500) {
+          const radius = 200;
+          let localCount = 0;
+          for (const p of particles) {
+            const dx = p.x - v.x;
+            const dy = p.y - v.y;
+            if (dx * dx + dy * dy <= radius * radius) localCount++;
+          }
+          
+          const screenArea = width * height;
+          const voidArea = Math.PI * radius * radius;
+          const expectedCount = Math.floor(config.numParticles * (voidArea / screenArea)) * 1.5; // Slight boost to density target
+          
+          if (localCount < expectedCount) {
+            const missing = Math.floor(expectedCount - localCount);
+            let stolen = 0;
+            
+            // Steal particles that are far away from the void
+            for (const p of particles) {
+              if (stolen >= missing) break;
+              const dx = p.x - v.x;
+              const dy = p.y - v.y;
+              if (dx * dx + dy * dy > 400 * 400) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = Math.random() * radius;
+                p.x = v.x + Math.cos(angle) * r;
+                p.y = v.y + Math.sin(angle) * r;
+                p.vx = (Math.random() - 0.5) * 0.5;
+                p.vy = (Math.random() - 0.5) * 0.5;
+                p.fadeStartTime = now;
+                stolen++;
+              }
+            }
+          }
+          voidsToRefill.splice(i, 1);
+        }
+      }
 
       // 1. Background Orbs
       bgCtx.fillStyle = BASE_BG_COLOR;
@@ -376,10 +422,20 @@ export function ParticlePhysicsBackground() {
         fgCtx.stroke();
       }
 
-      // 8. Render Particles 
+            // 8. Render Particles 
       for (const p of particles) {
+        let fadeAlpha = 1.0;
+        if (p.fadeStartTime) {
+           const elapsed = now - p.fadeStartTime;
+           if (elapsed < 800) {
+              fadeAlpha = elapsed / 800;
+           } else {
+              p.fadeStartTime = 0;
+           }
+        }
+        
         const h = (HUES[p.hueIdx] + globalHueShift) % 360;
-        const alpha = 0.85 + 0.15 * Math.sin(frame * 0.0125 + p.phase); 
+        const alpha = (0.85 + 0.15 * Math.sin(frame * 0.0125 + p.phase)) * fadeAlpha; 
         
         fgCtx.beginPath();
         fgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
