@@ -196,8 +196,15 @@ export function ParticlePhysicsBackground() {
             let stolen = 0;
             
             // Steal particles that are far away from the void
-            for (const p of particles) {
+            // Randomize starting index to prevent stealing the same particles every time
+            const startIndex = Math.floor(Math.random() * particles.length);
+            for (let j = 0; j < particles.length; j++) {
               if (stolen >= missing) break;
+              const p = particles[(startIndex + j) % particles.length];
+              
+              // Prevent cannibalizing recently refilled particles (15 second cooldown)
+              if (p.lastRefillTime && now - p.lastRefillTime < 15000) continue;
+
               const dx = p.x - v.x;
               const dy = p.y - v.y;
               if (dx * dx + dy * dy > 400 * 400) {
@@ -208,6 +215,7 @@ export function ParticlePhysicsBackground() {
                 p.vx = (Math.random() - 0.5) * 0.5;
                 p.vy = (Math.random() - 0.5) * 0.5;
                 p.fadeStartTime = now;
+                p.lastRefillTime = now;
                 stolen++;
               }
             }
